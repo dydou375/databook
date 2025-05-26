@@ -32,8 +32,6 @@ Le but est de fournir un accès libre et rapide (interfaces etc...), une analyse
 
 ## MCD (Mermaid)
 
-![Diagramme ERD](schema/MCD.png)
-
 
 ```mermaid
 erDiagram
