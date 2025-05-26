@@ -7,7 +7,8 @@ Le but est de fournir un accès libre et rapide (interfaces etc...), une analyse
 
 # Schema fonctionnel :
 
-![Schema fonctionnel](schema_fonctionnel.png)
+![Schema fonctionnel](schema/schema_fonctionnel.png)
+
 # Sources de données externe :
 	- API;
 		- Open Library : documenté (dernier mise a jour de l'api : 7 mai 2025) -> infos sur les livres, auteurs…
