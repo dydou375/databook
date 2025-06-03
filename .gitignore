@@ -32,6 +32,8 @@ tests/
 # Ignorer les fichiers de documentation générés
 docs/
 
+data/
+
 # Ignorer les fichiers de données sensibles
 *.key
 *.pem
