@@ -1,0 +1,43 @@
+# Ignorer les fichiers de données JSON
+livres_json/*.json
+
+# Ignorer les fichiers de configuration
+*.config
+
+# Ignorer les fichiers de log
+*.log
+
+# Ignorer les fichiers temporaires
+*.tmp
+*.temp
+
+# Ignorer les fichiers de sauvegarde
+*.bak
+*.old
+
+# Ignorer les fichiers de cache
+.cache/
+
+# Ignorer les fichiers générés par l'IDE
+.idea/
+.vscode/
+
+# Ignorer les fichiers de compilation
+*.pyc
+__pycache__/
+
+# Ignorer les fichiers de test
+tests/
+
+# Ignorer les fichiers de documentation générés
+docs/
+
+# Ignorer les fichiers de données
+data/
+
+scripts/api/livres_json/
+
+# Ignorer les fichiers de données sensibles
+*.key
+*.pem
+*.crt
