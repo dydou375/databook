@@ -32,7 +32,10 @@ tests/
 # Ignorer les fichiers de documentation générés
 docs/
 
+# Ignorer les fichiers de données
 data/
+
+scripts/api/livres_json/
 
 # Ignorer les fichiers de données sensibles
 *.key

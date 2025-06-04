@@ -38,7 +38,7 @@ categories = [
     {"fr": "Référence", "en": "Reference"}
 ]
 
-max_results = 100  # Nombre total de livres souhaités par catégorie
+max_results = 500  # Nombre total de livres souhaités par catégorie
 max_api_results = 40  # Limite de l'API Google Books par requête
 
 # Crée un dossier pour stocker les fichiers JSON
@@ -47,7 +47,7 @@ os.makedirs("livres_json", exist_ok=True)
 for cat in categories:
     sujet = cat["en"]
     livres_json = []
-    print(f"Traitement de la catégorie : {sujet}...")
+    print(f"=== Livres pour le sujet : {sujet} (en) ===")
 
     total_recup = 0
     for start in range(0, max_results, max_api_results):
@@ -71,6 +71,7 @@ for cat in categories:
                 notes = info.get("averageRating", None)
                 nbr_vote = info.get("ratingsCount", None)
                 resume = info.get("description", "description non présente")
+                genres_google = info.get("categories", [])
                 identifiers = info.get("industryIdentifiers", [])
                 isbn_10 = next((id["identifier"] for id in identifiers if id["type"] == "ISBN_10"), "N/A")
                 isbn_13 = next((id["identifier"] for id in identifiers if id["type"] == "ISBN_13"), "N/A")
@@ -103,7 +104,9 @@ for cat in categories:
                     "isbn_13": isbn_13,
                     "edition_keys": edition_keys,
                     "note": notes,
-                    "nombre_votes": nbr_vote
+                    "nombre_votes": nbr_vote,
+                    "genres_google": genres_google,
+                    "tous_les_genres": genres_google
                 })
                 total_recup += 1
                 if total_recup >= max_results:
