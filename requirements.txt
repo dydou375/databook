@@ -1,9 +1,0 @@
-requests
-beautifulsoup4
-lxml
-pandas
-python-dotenv
-mysql-connector-python
-pymongo
-sqlalchemy
-tqdm
