@@ -37,6 +37,7 @@ data/
 
 scripts/api/livres_json/
 
+scripts/api/livres_json_redistribues/
 # Ignorer les fichiers de données sensibles
 *.key
 *.pem
