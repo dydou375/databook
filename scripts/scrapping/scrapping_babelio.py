@@ -59,9 +59,10 @@ livres = [
 # Enrichir chaque livre
 for livre in livres:
     isbn = livre.get("isbn_13")
+    isbn_test = "9782092544396"
     if isbn:
-        print(f"Recherche ISBN {isbn}...")
-        data_babelio = chercher_babelio_par_isbn(isbn)
+        print(f"Recherche ISBN {isbn_test}...")
+        data_babelio = chercher_babelio_par_isbn(isbn_test)
         if data_babelio:
             livre.update(data_babelio)
         else:
