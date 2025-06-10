@@ -453,10 +453,8 @@ def redistribuer_livres_ameliore():
             stats["debug_count"] += 1
         
         # Préparer le livre
-        livre_clean = {k: v for k, v in livre.items() if k != 'fichier_source'}
-        livre_clean['categories_trouvees'] = categories
-        livre_clean['fichier_cible'] = fichier_cible
-        
+        livre_clean = {k: v for k, v in livre.items() if k not in ['fichier_source', 'categories_trouvees', 'fichier_cible', 'genres_google']}
+        livre_clean['tous_les_genres'] = categories
         livres_par_categorie[fichier_cible].append(livre_clean)
         stats["redistribues"] += 1
     
