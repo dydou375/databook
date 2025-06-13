@@ -32,61 +32,101 @@ Le but est de fournir un accès libre et rapide (interfaces etc...), une analyse
 
 ## MCD (Mermaid)
 
-
 ```mermaid
 erDiagram
     LIVRE {
         int id_livre PK
         string titre
-        date date_publication
+        int annee_publication
         string isbn
-        string langue
         string description
+        int nombre_pages
+        string url_couverture
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
         float note_moyenne
-        int nb_pages
-        string couverture_url
+        int nombre_avis
+        string statut_acquisition
+        string date_ajout
+        string date_modification
     }
     AUTEUR {
         int id_auteur PK
         string nom
-        date date_naissance
-        string biographie
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
+        string date_ajout
+        string date_modification
     }
-    GENRE {
-        int id_genre PK
-        string nom_genre
+    EDITEUR {
+        int id_editeur PK
+        string nom
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
+        string date_ajout
+        string date_modification
     }
-    UTILISATEUR {
-        int id_utilisateur PK
-        string pseudo
-        date date_inscription
-        string pays
+    LANGUE {
+        int id_langue PK
+        string code
+        string nom
+        string date_ajout
+        string date_modification
     }
-    CRITIQUE {
-        int id_critique PK
-        int id_utilisateur FK
-        int id_livre FK
-        float note
-        string commentaire
-        date date_critique
+    SUJET {
+        int id_sujet PK
+        string nom
+        string date_ajout
+        string date_modification
     }
     LIVRE_AUTEUR {
-        int id_livre PK, FK
-        int id_auteur PK, FK
+        int id_livre PK,FK
+        int id_auteur PK,FK
+        string date_ajout
+        string date_modification
     }
-    LIVRE_GENRE {
-        int id_livre PK, FK
-        int id_genre PK, FK
+    LIVRE_EDITEUR {
+        int id_livre PK,FK
+        int id_editeur PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_LANGUE {
+        int id_livre PK,FK
+        int id_langue PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_SUJET {
+        int id_livre PK,FK
+        int id_sujet PK,FK
+        string date_ajout
+        string date_modification
+    }
+    EXTRACTION_LOG {
+        int id_log PK
+        string nom_fichier
+        int nombre_lignes
+        string date_extraction
+        string statut
+        string message
     }
 
-    LIVRE ||--o{ LIVRE_AUTEUR : ""
-    AUTEUR ||--o{ LIVRE_AUTEUR : ""
-    LIVRE ||--o{ LIVRE_GENRE : ""
-    GENRE ||--o{ LIVRE_GENRE : ""
-    UTILISATEUR ||--o{ CRITIQUE : ""
-    LIVRE ||--o{ CRITIQUE : ""
+    LIVRE ||--o{ LIVRE_AUTEUR : "a"
+    AUTEUR ||--o{ LIVRE_AUTEUR : "écrit"
+    LIVRE ||--o{ LIVRE_EDITEUR : "publié par"
+    EDITEUR ||--o{ LIVRE_EDITEUR : "publie"
+    LIVRE ||--o{ LIVRE_LANGUE : "disponible en"
+    LANGUE ||--o{ LIVRE_LANGUE : "utilisée dans"
+    LIVRE ||--o{ LIVRE_SUJET : "traite de"
+    SUJET ||--o{ LIVRE_SUJET : "apparaît dans"
 ```
-
 
 ## Architecture logique :
 
