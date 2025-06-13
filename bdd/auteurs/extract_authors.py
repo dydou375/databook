@@ -354,7 +354,7 @@ def insert_authors_batch():
 def insert_authors_pandas():
     """
     Version ultra-optimisée avec Pandas et SQLAlchemy pour très gros volumes.
-    Avec gestion robuste des doublons.
+    Vérifie d'abord les auteurs déjà présents et ne traite que les nouveaux.
     """
     csv_file = Path(r"C:\Users\dd758\Formation_IA_Greta\Projet_possible certif\Livre_analyse\data_book\databook\data\fichier_openlibrary\extracted_authors.csv")
     
@@ -378,26 +378,49 @@ def insert_authors_pandas():
         df = df.dropna(subset=['author_name'])  # Supprimer les noms vides
         df = df.drop_duplicates(subset=['author_key'])  # Supprimer les doublons dans le CSV
         
-        # Préparer les données
+        print(f"📈 Données du CSV : {len(df):,} auteurs uniques")
+        
+        # ÉTAPE 1 : Récupérer tous les id_auteur déjà présents en base
+        print("🔍 Vérification des auteurs déjà présents en base...")
+        with engine.connect() as conn:
+            # Récupérer tous les id_auteur existants en une seule requête
+            existing_authors_result = conn.execute(
+                text("SELECT id_auteur FROM auteur")
+            )
+            existing_authors = {row[0] for row in existing_authors_result.fetchall()}
+        
+        print(f"📋 Auteurs déjà en base : {len(existing_authors):,}")
+        
+        # ÉTAPE 2 : Filtrer pour ne garder que les nouveaux auteurs
+        print("🔄 Filtrage des nouveaux auteurs...")
+        df_new = df[~df['author_key'].isin(existing_authors)].copy()
+        
+        print(f"✅ Nouveaux auteurs à insérer : {len(df_new):,}")
+        print(f"⚠️  Auteurs déjà présents (ignorés) : {len(df) - len(df_new):,}")
+        
+        # Si aucun nouvel auteur, on s'arrête ici
+        if len(df_new) == 0:
+            print("🎉 Aucun nouvel auteur à insérer ! Tous sont déjà en base.")
+            engine.dispose()
+            return
+        
+        # ÉTAPE 3 : Préparer les données pour insertion
         df_insert = pd.DataFrame({
-            'id_auteur': df['author_key'],
-            'nom': df['author_name'],
+            'id_auteur': df_new['author_key'],
+            'nom': df_new['author_name'],
             'date_naissance': None,
             'biographie': None
         })
         
-        print(f"📈 Données préparées : {len(df_insert):,} auteurs uniques")
-        
-        # Version avec gestion des doublons - insertion chunk par chunk avec ON CONFLICT
+        # ÉTAPE 4 : Insertion par chunks (plus rapide pour gros volumes)
         chunk_size = 1000
         total_chunks = (len(df_insert) + chunk_size - 1) // chunk_size
         authors_inserted = 0
-        authors_skipped = 0
         
-        print(f"⚡ Insertion par chunks de {chunk_size} avec gestion des doublons...")
+        print(f"⚡ Insertion par chunks de {chunk_size}...")
         
-        with tqdm(total=len(df_insert), desc="🚀 Pandas+SQL", unit="auteurs",
-                 bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
+        with tqdm(total=len(df_insert), desc="🚀 Insertion nouveaux", unit="auteurs",
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]') as pbar:
             
             for i in range(0, len(df_insert), chunk_size):
                 chunk = df_insert.iloc[i:i+chunk_size]
@@ -406,45 +429,32 @@ def insert_authors_pandas():
                 chunk_data = chunk.to_dict('records')
                 
                 with engine.connect() as conn:
-                    # Insérer avec gestion des doublons
-                    for record in chunk_data:
-                        try:
-                            result = conn.execute(
-                                text("""
-                                    INSERT INTO auteur (id_auteur, nom, date_naissance, biographie) 
-                                    VALUES (:id_auteur, :nom, :date_naissance, :biographie)
-                                    ON CONFLICT (id_auteur) DO NOTHING
-                                    RETURNING id_auteur
-                                """),
-                                record
-                            )
-                            
-                            if result.fetchone() is not None:
-                                authors_inserted += 1
-                            else:
-                                authors_skipped += 1
-                                
-                        except Exception as e:
-                            print(f"\n❌ Erreur pour {record['id_auteur']}: {e}")
-                            authors_skipped += 1
-                    
+                    # Insertion directe (pas de ON CONFLICT car on a déjà filtré)
+                    conn.execute(
+                        text("""
+                            INSERT INTO auteur (id_auteur, nom, date_naissance, biographie) 
+                            VALUES (:id_auteur, :nom, :date_naissance, :biographie)
+                        """),
+                        chunk_data
+                    )
                     conn.commit()
+                
+                authors_inserted += len(chunk)
                 
                 # Mettre à jour la barre de progression
                 pbar.update(len(chunk))
                 pbar.set_postfix({
                     "✅ Insérés": f"{authors_inserted:,}",
-                    "⚠️ Ignorés": f"{authors_skipped:,}",
                     "Chunk": f"{(i//chunk_size)+1}/{total_chunks}"
                 })
         
         engine.dispose()
         
         print(f"\n=== RÉSULTATS PANDAS INSERTION ===")
-        print(f"✅ Auteurs insérés     : {authors_inserted:,}")
-        print(f"⚠️  Auteurs ignorés     : {authors_skipped:,} (doublons)")
-        print(f"📊 Total traité        : {authors_inserted + authors_skipped:,}")
-        print(f"🎯 Taux de réussite    : {(authors_inserted/(authors_inserted + authors_skipped)*100):.1f}%")
+        print(f"📊 Total dans CSV         : {len(df):,}")
+        print(f"⚠️  Déjà en base (ignorés) : {len(df) - len(df_new):,}")
+        print(f"✅ Nouveaux insérés       : {authors_inserted:,}")
+        print(f"🎯 Efficacité             : {(authors_inserted/len(df)*100):.1f}% de nouveaux")
         
     except Exception as e:
         print(f"❌ Erreur : {e}")
@@ -736,6 +746,309 @@ def ensure_unique_constraint():
         print(f"⚠️ Erreur lors de la vérification/création de la contrainte : {e}")
         print("💡 La contrainte sera gérée par ON CONFLICT DO NOTHING")
 
+def update_birth_death_dates_from_csv():
+    """
+    Met à jour les dates de naissance et de mort dans la table auteur
+    depuis le CSV 'auteurs_avec_date_naissance.csv'
+    """
+    csv_file = Path(r"C:\Users\dd758\Formation_IA_Greta\Projet_possible certif\Livre_analyse\data_book\databook\data\fichier_openlibrary\auteurs_avec_date_naissance.csv")
+    
+    if not csv_file.exists():
+        print(f"❌ Le fichier CSV {csv_file} n'existe pas.")
+        print("Veuillez d'abord exécuter l'extraction des auteurs avec dates de naissance.")
+        return
+    
+    # Paramètres de connexion
+    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/databook"
+    
+    try:
+        # Créer l'engine SQLAlchemy
+        engine = create_engine(DATABASE_URL)
+        
+        print("=== MISE À JOUR DES DATES DE NAISSANCE ET MORT ===")
+        print(f"📂 Lecture du fichier CSV : {csv_file}")
+        
+        # Lire le CSV avec Pandas
+        print("📊 Chargement des données...")
+        df = pd.read_csv(csv_file)
+        
+        print(f"📈 Données du CSV : {len(df):,} auteurs")
+        
+        # Vérifier les colonnes nécessaires
+        required_columns = ['author_id', 'birth_date', 'death_date', 'birth_year', 'death_year']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            print(f"❌ Colonnes manquantes dans le CSV : {missing_columns}")
+            return
+        
+        # Statistiques des données disponibles
+        birth_dates_count = df['birth_date'].notna().sum()
+        death_dates_count = df['death_date'].notna().sum()
+        birth_years_count = df['birth_year'].notna().sum()
+        death_years_count = df['death_year'].notna().sum()
+        
+        print(f"📋 Données disponibles :")
+        print(f"   • Dates de naissance : {birth_dates_count:,}")
+        print(f"   • Dates de mort      : {death_dates_count:,}")
+        print(f"   • Années naissance   : {birth_years_count:,}")
+        print(f"   • Années mort        : {death_years_count:,}")
+        
+        # Vérifier d'abord si la colonne date_mort existe
+        print("🔍 Vérification de la structure de la table...")
+        with engine.connect() as conn:
+            # Vérifier les colonnes existantes
+            result = conn.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'auteur' 
+                AND column_name IN ('date_naissance', 'date_mort')
+            """)).fetchall()
+            
+            existing_columns = [row[0] for row in result]
+            
+            # Ajouter la colonne date_mort si elle n'existe pas
+            if 'date_mort' not in existing_columns:
+                print("📝 Ajout de la colonne date_mort...")
+                conn.execute(text("""
+                    ALTER TABLE auteur 
+                    ADD COLUMN date_mort VARCHAR(100) NULL
+                """))
+                conn.commit()
+                print("✅ Colonne date_mort ajoutée")
+            else:
+                print("✅ Colonne date_mort déjà présente")
+        
+        # Préparer les données pour la mise à jour
+        authors_to_update = []
+        
+        for _, row in df.iterrows():
+            author_id = row['author_id']
+            birth_date = row['birth_date'] if pd.notna(row['birth_date']) else None
+            death_date = row['death_date'] if pd.notna(row['death_date']) else None
+            
+            # Ne traiter que les auteurs avec au moins une date
+            if birth_date or death_date:
+                authors_to_update.append({
+                    'author_id': author_id,
+                    'birth_date': birth_date,
+                    'death_date': death_date
+                })
+        
+        print(f"🎯 Auteurs à mettre à jour : {len(authors_to_update):,}")
+        
+        if len(authors_to_update) == 0:
+            print("⚠️ Aucun auteur avec dates à mettre à jour")
+            return
+        
+        # Phase 1 : Vérifier les correspondances avec la base
+        print("🔍 Phase 1 : Vérification des correspondances...")
+        
+        found_authors = 0
+        not_found_authors = 0
+        updates_data = []
+        
+        with engine.connect() as conn:
+            with tqdm(total=len(authors_to_update), desc="🔍 Vérification", unit="auteurs") as pbar:
+                for author_data in authors_to_update:
+                    author_id = author_data['author_id']
+                    
+                    # Chercher l'auteur dans la base par clé OpenLibrary
+                    # Essayer différentes variantes de recherche
+                    search_patterns = [
+                        author_id,  # Clé exacte
+                        f"/{author_id}",  # Avec slash
+                        f"/authors/{author_id}",  # Clé complète
+                        f"%{author_id}%"  # Pattern général
+                    ]
+                    
+                    author_found = False
+                    db_id = None
+                    
+                    for pattern in search_patterns:
+                        result = conn.execute(text("""
+                            SELECT id_auteur 
+                            FROM auteur 
+                            WHERE id_auteur ILIKE :pattern 
+                            LIMIT 1
+                        """), {"pattern": pattern}).fetchone()
+                        
+                        if result:
+                            db_id = result[0]
+                            author_found = True
+                            break
+                    
+                    if author_found:
+                        found_authors += 1
+                        updates_data.append({
+                            'db_id': db_id,
+                            'birth_date': author_data['birth_date'],
+                            'death_date': author_data['death_date']
+                        })
+                    else:
+                        not_found_authors += 1
+                    
+                    pbar.update(1)
+                    pbar.set_postfix({
+                        "Trouvés": found_authors,
+                        "Non trouvés": not_found_authors
+                    })
+        
+        print(f"📊 Résultats de la vérification :")
+        print(f"   ✅ Auteurs trouvés     : {found_authors:,}")
+        print(f"   ❌ Auteurs non trouvés : {not_found_authors:,}")
+        
+        if found_authors == 0:
+            print("⚠️ Aucun auteur trouvé dans la base pour mise à jour")
+            return
+        
+        # Phase 2 : Mise à jour des dates
+        print("🔄 Phase 2 : Mise à jour des dates...")
+        
+        birth_updates = 0
+        death_updates = 0
+        
+        with engine.connect() as conn:
+            with tqdm(total=len(updates_data), desc="🔄 Mise à jour", unit="auteurs") as pbar:
+                for update_data in updates_data:
+                    db_id = update_data['db_id']
+                    birth_date = update_data['birth_date']
+                    death_date = update_data['death_date']
+                    
+                    try:
+                        # Construire la requête de mise à jour dynamiquement
+                        set_clauses = []
+                        params = {'db_id': db_id}
+                        
+                        if birth_date:
+                            set_clauses.append("date_naissance = :birth_date")
+                            params['birth_date'] = birth_date
+                            birth_updates += 1
+                        
+                        if death_date:
+                            set_clauses.append("date_mort = :death_date")
+                            params['death_date'] = death_date
+                            death_updates += 1
+                        
+                        if set_clauses:
+                            update_sql = f"""
+                                UPDATE auteur 
+                                SET {', '.join(set_clauses)}
+                                WHERE id_auteur = :db_id
+                            """
+                            
+                            conn.execute(text(update_sql), params)
+                        
+                        # Commit périodique
+                        if pbar.n % 100 == 0:
+                            conn.commit()
+                    
+                    except Exception as e:
+                        print(f"\n❌ Erreur lors de la mise à jour de {db_id}: {e}")
+                        continue
+                    
+                    pbar.update(1)
+                    pbar.set_postfix({
+                        "Naissances": birth_updates,
+                        "Morts": death_updates
+                    })
+            
+            # Commit final
+            conn.commit()
+        
+        engine.dispose()
+        
+        print(f"\n=== RÉSULTATS DE LA MISE À JOUR ===")
+        print(f"✅ Auteurs traités         : {found_authors:,}")
+        print(f"📅 Dates de naissance mises à jour : {birth_updates:,}")
+        print(f"⚰️  Dates de mort mises à jour     : {death_updates:,}")
+        print(f"🎯 Taux de correspondance  : {(found_authors/len(authors_to_update)*100):.1f}%")
+        print("🎉 Mise à jour terminée avec succès !")
+        
+        # Afficher quelques exemples de mises à jour
+        print(f"\n📋 VÉRIFICATION POST-MISE À JOUR :")
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT id_auteur, nom, date_naissance, date_mort
+                FROM auteur 
+                WHERE date_naissance IS NOT NULL OR date_mort IS NOT NULL
+                ORDER BY date_naissance DESC
+                LIMIT 5
+            """)).fetchall()
+            
+            print("Quelques exemples d'auteurs avec dates :")
+            for row in result:
+                id_auteur, nom, date_naissance, date_mort = row
+                birth_info = date_naissance if date_naissance else "Non renseigné"
+                death_info = date_mort if date_mort else "Vivant/Non renseigné"
+                print(f"   • {nom:<30} | Né: {birth_info} | Mort: {death_info}")
+        
+    except Exception as e:
+        print(f"❌ Erreur : {e}")
+
+def verify_dates_update():
+    """
+    Vérifie les dates mises à jour dans la base de données
+    """
+    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/databook"
+    
+    try:
+        engine = create_engine(DATABASE_URL)
+        
+        print("=== VÉRIFICATION DES DATES DANS LA BASE ===")
+        
+        with engine.connect() as conn:
+            # Statistiques générales
+            result = conn.execute(text("""
+                SELECT 
+                    COUNT(*) as total_auteurs,
+                    COUNT(date_naissance) as avec_date_naissance,
+                    COUNT(date_mort) as avec_date_mort,
+                    COUNT(CASE WHEN date_naissance IS NOT NULL AND date_mort IS NOT NULL THEN 1 END) as avec_les_deux
+                FROM auteur
+            """)).fetchone()
+            
+            total, avec_naissance, avec_mort, avec_les_deux = result
+            
+            print(f"📊 STATISTIQUES DE LA TABLE AUTEUR :")
+            print(f"   👥 Total auteurs           : {total:,}")
+            print(f"   🎂 Avec date de naissance  : {avec_naissance:,} ({(avec_naissance/total*100):.1f}%)")
+            print(f"   ⚰️  Avec date de mort       : {avec_mort:,} ({(avec_mort/total*100):.1f}%)")
+            print(f"   📋 Avec les deux dates     : {avec_les_deux:,} ({(avec_les_deux/total*100):.1f}%)")
+            
+            # Exemples d'auteurs avec dates complètes
+            print(f"\n📚 EXEMPLES D'AUTEURS AVEC DATES COMPLÈTES :")
+            result = conn.execute(text("""
+                SELECT nom, date_naissance, date_mort
+                FROM auteur 
+                WHERE date_naissance IS NOT NULL AND date_mort IS NOT NULL
+                ORDER BY RANDOM()
+                LIMIT 10
+            """)).fetchall()
+            
+            for i, (nom, naissance, mort) in enumerate(result, 1):
+                print(f"   {i:2d}. {nom:<35} | {naissance} - {mort}")
+            
+            # Auteurs les plus anciens
+            print(f"\n👴 AUTEURS LES PLUS ANCIENS (avec date de naissance) :")
+            result = conn.execute(text("""
+                SELECT nom, date_naissance, date_mort
+                FROM auteur 
+                WHERE date_naissance IS NOT NULL
+                AND date_naissance ~ '^[0-9]+'  -- Commence par un chiffre
+                ORDER BY CAST(SUBSTRING(date_naissance FROM '^[0-9]+') AS INTEGER)
+                LIMIT 5
+            """)).fetchall()
+            
+            for i, (nom, naissance, mort) in enumerate(result, 1):
+                mort_info = f" (mort en {mort})" if mort else " (date de mort inconnue)"
+                print(f"   {i}. {nom} - né en {naissance}{mort_info}")
+        
+        engine.dispose()
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de la vérification : {e}")
+
 if __name__ == "__main__":
     print("=== EXTRACTION ET INSERTION DES AUTEURS OPENLIBRARY ===")
     print("Choisissez une option :")
@@ -749,8 +1062,10 @@ if __name__ == "__main__":
     print("8. 🧪 TEST : Insertion en base")
     print("9. 🧪 TEST COMPLET (extraction + insertion)")
     print("10. 🔧 Vérifier/Créer contrainte UNIQUE")
+    print("11. 🔧 Mettre à jour les dates de naissance et de mort")
+    print("12. �� Vérifier les dates mises à jour")
     
-    choice = input("Votre choix (1-10) : ").strip()
+    choice = input("Votre choix (1-12) : ").strip()
     
     if choice == "1":
         extract_authors_from_dump()
@@ -775,6 +1090,10 @@ if __name__ == "__main__":
         run_full_test()
     elif choice == "10":
         ensure_unique_constraint()
+    elif choice == "11":
+        update_birth_death_dates_from_csv()
+    elif choice == "12":
+        verify_dates_update()
     else:
         print("Choix invalide. Exécution de l'extraction par défaut...")
         extract_authors_from_dump() 

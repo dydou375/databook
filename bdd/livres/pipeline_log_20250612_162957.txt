@@ -1,0 +1,9 @@
+LOGS DU PIPELINE OPENLIBRARY
+==================================================
+
+[2025-06-12 16:29:41] INFO: 🚀 DÉMARRAGE DU PIPELINE COMPLET
+[2025-06-12 16:29:52] INFO: Analyse de ol_cdump_2025-05-31.txt.gz
+[2025-06-12 16:29:57] INFO: Démarrage extraction vers livres_test_100k_20250612_162957.csv
+[2025-06-12 16:29:57] INFO: Nettoyage de livres_openlibrary_500000_livres.csv
+[2025-06-12 16:29:57] INFO: Formatage vers base de données: bibliotheque_20250612_162957.db
+[2025-06-12 16:29:57] INFO: 🎉 PIPELINE TERMINÉ AVEC SUCCÈS!

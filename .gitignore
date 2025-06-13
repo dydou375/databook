@@ -38,6 +38,12 @@ data/
 scripts/api/livres_json/
 
 scripts/api/livres_json_redistribues/
+
+# Ignorer les fichiers CSV (trop volumineux pour Git)
+*.csv
+**/*.csv
+bdd/**/*.csv
+
 # Ignorer les fichiers de données sensibles
 *.key
 *.pem
