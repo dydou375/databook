@@ -1,40 +1,54 @@
 import os
 from typing import List
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Charger le fichier .env
+load_dotenv()
 
 class Settings(BaseSettings):
     # Configuration de la clé API
-    api_key: str = "your-api-key-change-this"
+    api_key: str = os.getenv("API_KEY", "your-api-key-change-this")
     
-    # Configuration des bases de données Docker
-    # Base de données principale (ex: PostgreSQL)
-    database_url: str = "postgresql://user:password@localhost:5432/databook"
+    # Configuration des bases de données
+    # PostgreSQL
+    postgres_host: str = os.getenv("POSTGRES_HOST", "localhost")
+    postgres_port: int = int(os.getenv("POSTGRES_PORT", "5432"))
+    postgres_db: str = os.getenv("POSTGRES_DB", "databook")
+    postgres_user: str = os.getenv("POSTGRES_USER", "user")
+    postgres_password: str = os.getenv("POSTGRES_PASSWORD", "password")
     
-    # MongoDB (si utilisé)
-    mongodb_url: str = "mongodb://localhost:27017"
-    mongodb_database: str = "databook"
+    @property
+    def database_url(self) -> str:
+        return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
     
-    # MySQL (si utilisé)
-    mysql_url: str = "mysql+pymysql://user:password@localhost:3306/databook"
+    # MongoDB
+    mongodb_host: str = os.getenv("MONGODB_HOST", "localhost")
+    mongodb_port: int = int(os.getenv("MONGODB_PORT", "27017"))
+    mongodb_database: str = os.getenv("MONGODB_DATABASE", "databook")
+    
+    @property
+    def mongodb_url(self) -> str:
+        return f"mongodb://{self.mongodb_host}:{self.mongodb_port}"
     
     # Configuration de l'application
-    app_name: str = "DataBook API"
-    app_version: str = "1.0.0"
-    debug: bool = True
+    app_name: str = os.getenv("APP_NAME", "DataBook API")
+    app_version: str = os.getenv("APP_VERSION", "1.0.0")
+    debug: bool = os.getenv("DEBUG", "true").lower() == "true"
     
     # Configuration CORS
-    allowed_origins: List[str] = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
+    allowed_origins: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080,http://localhost:5173").split(",")
     
     # Configuration JWT
-    secret_key: str = "your-super-secret-key-change-this-in-production"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    secret_key: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-this-in-production")
+    algorithm: str = os.getenv("ALGORITHM", "HS256")
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
     # Configuration email (optionnel)
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
+    smtp_host: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user: str = os.getenv("SMTP_USER", "")
+    smtp_password: str = os.getenv("SMTP_PASSWORD", "")
     
     class Config:
         env_file = ".env"

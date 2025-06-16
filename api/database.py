@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from sqlalchemy.sql import func
@@ -101,8 +101,8 @@ def check_db_connection():
     """Vérifier la connexion à la base de données"""
     try:
         db = SessionLocal()
-        # Test simple de connexion
-        db.execute("SELECT 1")
+        # Test simple de connexion avec text()
+        db.execute(text("SELECT 1"))
         db.close()
         print("✅ Connexion à la base de données réussie!")
         return True
