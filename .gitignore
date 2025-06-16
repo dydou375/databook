@@ -44,6 +44,13 @@ scripts/api/livres_json_redistribues/
 **/*.csv
 bdd/**/*.csv
 
+# Ignorer les fichiers JSON
+*.json
+**/*.json
+
+#igonre le dossier data_extraite
+data_extraite/
+
 # Ignorer les fichiers de données sensibles
 *.key
 *.pem

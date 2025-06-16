@@ -1,0 +1,31 @@
+# API FastAPI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic[email]==2.5.0
+python-multipart==0.0.6
+
+# Base de données
+sqlalchemy==2.0.23
+alembic==1.13.0
+mysql-connector-python
+pymongo
+
+# Authentification et sécurité
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# Web scraping et requests
+requests
+beautifulsoup4
+lxml
+httpx==0.25.2
+
+# Analyse de données
+pandas
+tqdm
+
+# Tests
+pytest==7.4.3 
