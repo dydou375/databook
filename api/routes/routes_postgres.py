@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from models import Item, ItemCreate, ItemUpdate, User
-from database import get_db
-from crud import item_crud, user_crud
-from auth import require_api_key
+from models.models import Item, ItemCreate, ItemUpdate, User
+from database.database import get_db
+from database.crud import item_crud, user_crud
+from auth.auth import require_api_key
 
 # Router pour les endpoints PostgreSQL
 postgres_router = APIRouter(prefix="/postgres", tags=["PostgreSQL"])

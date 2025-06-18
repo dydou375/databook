@@ -5,16 +5,16 @@ import uvicorn
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from models import User, UserCreate, UserUpdate, Item, ItemCreate, ItemUpdate
-from database import get_db, init_db, check_db_connection
-from crud import user_crud, item_crud
-from auth import require_api_key
-from config import settings
+from models.models import User, UserCreate, UserUpdate, Item, ItemCreate, ItemUpdate
+from database.database import get_db, init_db, check_db_connection
+from database.crud import user_crud, item_crud
+from auth.auth import require_api_key
+from config.config import settings
 
 # Import des nouveaux routers
-from routes_postgres import postgres_router
-from routes_mongo import mongo_router
-from mongo_crud import mongodb_service
+from routes.routes_postgres import postgres_router
+from routes.routes_mongo import mongo_router
+from database.mongo_crud import mongodb_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

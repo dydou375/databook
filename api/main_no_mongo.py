@@ -5,14 +5,14 @@ import uvicorn
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from models import User, UserCreate, UserUpdate, Item, ItemCreate, ItemUpdate
-from database import get_db, init_db, check_db_connection
-from crud import user_crud, item_crud
-from auth import require_api_key
+from models.models import User, UserCreate, UserUpdate, Item, ItemCreate, ItemUpdate
+from database.database import get_db, init_db, check_db_connection
+from database.crud import user_crud, item_crud
+from auth.auth import require_api_key
 
 # Configuration simplifiée
 try:
-    from config import settings
+    from config.config import settings
     ALLOWED_ORIGINS = settings.allowed_origins
     API_KEY = settings.api_key
 except:

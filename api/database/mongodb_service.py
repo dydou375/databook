@@ -5,8 +5,8 @@ from datetime import datetime
 import asyncio
 from bson import ObjectId
 
-from config import settings
-from models_mongo import BookMongo, BookMongoCreate, BookMongoUpdate, BookAnalytics
+from config.config import settings
+from models.models_mongo import BookMongo, BookMongoCreate, BookMongoUpdate, BookAnalytics, BookRecommendation, BookInventory
 
 class MongoDBService:
     def __init__(self):
@@ -69,6 +69,28 @@ class MongoDBService:
         books = await cursor.to_list(length=limit)
         return [BookMongo(**book) for book in books]
     
+    async def update_book(self, book_id: str, book_update: BookMongoUpdate) -> Optional[BookMongo]:
+        """Mettre à jour un livre"""
+        try:
+            update_data = book_update.dict(exclude_unset=True)
+            if update_data:
+                update_data["updated_at"] = datetime.now()
+                await self.database.books.update_one(
+                    {"_id": ObjectId(book_id)},
+                    {"$set": update_data}
+                )
+            return await self.get_book(book_id)
+        except Exception:
+            return None
+    
+    async def delete_book(self, book_id: str) -> bool:
+        """Supprimer un livre"""
+        try:
+            result = await self.database.books.delete_one({"_id": ObjectId(book_id)})
+            return result.deleted_count > 0
+        except Exception:
+            return False
+    
     async def search_books(self, query: str, category: Optional[str] = None) -> List[BookMongo]:
         """Rechercher des livres par texte"""
         search_filter = {
@@ -94,14 +116,44 @@ class MongoDBService:
         return [BookMongo(**book) for book in books]
     
     async def get_popular_books(self, limit: int = 10) -> List[BookMongo]:
-        """Récupérer les livres populaires"""
+        """Récupérer les livres populaires (basé sur rating et reviews)"""
         cursor = self.database.books.find({
             "rating": {"$gte": 4.0}
         }).sort("rating", -1).limit(limit)
         books = await cursor.to_list(length=limit)
         return [BookMongo(**book) for book in books]
     
-    # Statistiques
+    # Analytics
+    async def create_analytics(self, book_id: str, analytics_data: Dict[str, Any]) -> BookAnalytics:
+        """Créer des données d'analyse pour un livre"""
+        analytics_dict = {
+            "book_id": book_id,
+            "created_at": datetime.now(),
+            **analytics_data
+        }
+        
+        result = await self.database.analytics.insert_one(analytics_dict)
+        created_analytics = await self.database.analytics.find_one({"_id": result.inserted_id})
+        return BookAnalytics(**created_analytics)
+    
+    async def get_book_analytics(self, book_id: str) -> Optional[BookAnalytics]:
+        """Récupérer les analytics d'un livre"""
+        analytics = await self.database.analytics.find_one({"book_id": book_id})
+        return BookAnalytics(**analytics) if analytics else None
+    
+    async def update_analytics(self, book_id: str, update_data: Dict[str, Any]) -> bool:
+        """Mettre à jour les analytics d'un livre"""
+        try:
+            update_data["updated_at"] = datetime.now()
+            result = await self.database.analytics.update_one(
+                {"book_id": book_id},
+                {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except Exception:
+            return False
+    
+    # Statistiques et agrégations
     async def get_statistics(self) -> Dict[str, Any]:
         """Récupérer les statistiques générales"""
         total_books = await self.database.books.count_documents({})
@@ -120,6 +172,20 @@ class MongoDBService:
             "categories": categories,
             "timestamp": datetime.now()
         }
+    
+    async def get_books_by_year(self, year: int) -> List[BookMongo]:
+        """Récupérer les livres par année de publication"""
+        cursor = self.database.books.find({"publication_year": year})
+        books = await cursor.to_list(length=None)
+        return [BookMongo(**book) for book in books]
+    
+    async def get_books_by_price_range(self, min_price: float, max_price: float) -> List[BookMongo]:
+        """Récupérer les livres dans une fourchette de prix"""
+        cursor = self.database.books.find({
+            "price": {"$gte": min_price, "$lte": max_price}
+        })
+        books = await cursor.to_list(length=None)
+        return [BookMongo(**book) for book in books]
 
 # Instance globale du service MongoDB
 mongodb_service = MongoDBService() 

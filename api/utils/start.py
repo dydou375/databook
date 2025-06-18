@@ -10,13 +10,13 @@ import asyncio
 import uvicorn
 from pathlib import Path
 
-# Ajouter le répertoire courant au path Python
-current_dir = Path(__file__).parent
+# Ajouter le répertoire parent au path Python
+current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir))
 
-from config import settings
-from database import init_db, check_db_connection
-from mongo_crud import mongodb_service
+from config.config import settings
+from database.database import init_db, check_db_connection
+from database.mongo_crud import mongodb_service
 
 def print_banner():
     """Afficher la bannière de démarrage"""

@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, Session, relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 import os
-from config import settings
+from config.config import settings
 
 # Configuration de la base de données principale
 DATABASE_URL = settings.database_url

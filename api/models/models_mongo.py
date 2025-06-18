@@ -1,33 +1,15 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from bson import ObjectId
 
-class PyObjectId(ObjectId):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid objectid")
-        return ObjectId(v)
-
-    @classmethod
-    def __get_pydantic_json_schema__(cls, field_schema, handler):
-        field_schema.update(type="string")
-        return field_schema
-
-# Modèles pour les livres dans MongoDB
+# Modèles simplifiés pour MongoDB (compatibles Pydantic v2)
 class BookMongo(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str}
+        extra="allow"
     )
     
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     title: str
     author: Optional[str] = None
     isbn: Optional[str] = None
@@ -39,12 +21,12 @@ class BookMongo(BaseModel):
     publisher: Optional[str] = None
     page_count: Optional[int] = None
     rating: Optional[float] = None
-    tags: List[str] = []
-    reviews: List[Dict[str, Any]] = []
+    tags: List[str] = Field(default_factory=list)
+    reviews: List[Dict[str, Any]] = Field(default_factory=list)
     stock_quantity: Optional[int] = 0
     language: Optional[str] = "fr"
     format: Optional[str] = "paperback"  # paperback, hardcover, ebook, audiobook
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 class BookMongoCreate(BaseModel):
@@ -59,7 +41,7 @@ class BookMongoCreate(BaseModel):
     publisher: Optional[str] = None
     page_count: Optional[int] = None
     rating: Optional[float] = None
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
     stock_quantity: Optional[int] = 0
     language: Optional[str] = "fr"
     format: Optional[str] = "paperback"
@@ -85,51 +67,48 @@ class BookMongoUpdate(BaseModel):
 class BookAnalytics(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str}
+        extra="allow"
     )
     
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     book_id: str  # Référence au livre
     views_count: int = 0
     purchases_count: int = 0
     average_rating: Optional[float] = None
     total_reviews: int = 0
     popularity_score: Optional[float] = None
-    trends_data: Dict[str, Any] = {}
-    created_at: datetime = Field(default_factory=datetime.now)
+    trends_data: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
 # Modèles pour les recommandations
 class BookRecommendation(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str}
+        extra="allow"
     )
     
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    user_preferences: Dict[str, Any] = {}
-    recommended_books: List[str] = []  # Liste des IDs de livres
+    id: Optional[str] = Field(default=None, alias="_id")
+    user_preferences: Dict[str, Any] = Field(default_factory=dict)
+    recommended_books: List[str] = Field(default_factory=list)  # Liste des IDs de livres
     recommendation_type: str = "content_based"  # content_based, collaborative, hybrid
     confidence_score: Optional[float] = None
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: Optional[datetime] = None
 
 # Modèles pour les ventes et inventaire
 class BookInventory(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str}
+        extra="allow"
     )
     
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     book_id: str
     stock_quantity: int = 0
     reserved_quantity: int = 0
     min_stock_level: int = 5
     max_stock_level: int = 100
-    supplier_info: Dict[str, Any] = {}
+    supplier_info: Dict[str, Any] = Field(default_factory=dict)
     last_restock_date: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None 

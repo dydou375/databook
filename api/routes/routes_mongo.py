@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from models_mongo import BookMongo, BookMongoCreate, BookMongoUpdate
-from mongo_crud import mongodb_service
-from auth import require_api_key
+from models.models_mongo import BookMongo, BookMongoCreate, BookMongoUpdate
+from database.mongo_crud import mongodb_service
+from auth.auth import require_api_key
 
 # Router pour les endpoints MongoDB
 mongo_router = APIRouter(prefix="/mongo", tags=["MongoDB"])
