@@ -5,7 +5,16 @@ from datetime import datetime
 import asyncio
 from bson import ObjectId
 
-from config.config import settings
+try:
+    from config.config import settings
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+    # Configuration par défaut
+    class Settings:
+        mongodb_url = "mongodb://localhost:27017"
+        mongodb_database = "databook"
+    settings = Settings()
 from models.models_mongo import BookMongo, BookMongoCreate, BookMongoUpdate, BookAnalytics
 
 class MongoDBService:

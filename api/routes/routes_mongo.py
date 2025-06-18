@@ -3,11 +3,21 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from models.models_mongo import BookMongo, BookMongoCreate, BookMongoUpdate
-from database.mongo_crud import mongodb_service
+try:
+    from database.mongo_crud import mongodb_service
+    MONGODB_AVAILABLE = True
+except ImportError:
+    MONGODB_AVAILABLE = False
+    mongodb_service = None
 from auth.auth import require_api_key
 
 # Router pour les endpoints MongoDB
 mongo_router = APIRouter(prefix="/mongo", tags=["MongoDB"])
+
+def check_mongodb_available():
+    """Vérifier si MongoDB est disponible"""
+    if not MONGODB_AVAILABLE or not mongodb_service:
+        raise HTTPException(status_code=503, detail="MongoDB non disponible")
 
 # Endpoints publics pour les livres MongoDB
 @mongo_router.get("/books/", response_model=List[BookMongo])
@@ -17,6 +27,7 @@ async def get_mongo_books(
     category: Optional[str] = None
 ):
     """Récupérer les livres depuis MongoDB (publique)"""
+    check_mongodb_available()
     filters = {"category": category} if category else None
     return await mongodb_service.get_books(skip=skip, limit=limit, filters=filters)
 

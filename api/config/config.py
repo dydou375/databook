@@ -8,7 +8,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     # Configuration de la clé API
-    api_key: str = os.getenv("API_KEY", "your-api-key-change-this")
+    api_key: str = os.getenv("API_KEY", "databook-api-key-2024")
     
     # Configuration des bases de données
     # PostgreSQL
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     
     @property
     def database_url(self) -> str:
-        return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}?options=-csearch_path%3Dtest"
     
     # MongoDB
     mongodb_host: str = os.getenv("MONGODB_HOST", "localhost")

@@ -14,7 +14,21 @@ from config.config import settings
 # Import des nouveaux routers
 from routes.routes_postgres import postgres_router
 from routes.routes_mongo import mongo_router
-from database.mongo_crud import mongodb_service
+from routes.routes_real_data import real_data_router
+from routes.routes_real_mongo import real_mongo_router
+from routes.routes_mongo_livres import mongo_livres_router
+try:
+    from routes.routes_livres import livres_router
+    LIVRES_ROUTER_AVAILABLE = True
+except ImportError:
+    LIVRES_ROUTER_AVAILABLE = False
+
+try:
+    from database.mongo_crud import mongodb_service
+    MONGODB_AVAILABLE = True
+except ImportError:
+    MONGODB_AVAILABLE = False
+    mongodb_service = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,18 +41,22 @@ async def lifespan(app: FastAPI):
     check_db_connection()
     
     # Initialisation MongoDB
-    print("🍃 Initialisation de MongoDB...")
-    try:
-        await mongodb_service.connect_async()
-    except Exception as e:
-        print(f"⚠️ Avertissement: MongoDB non disponible - {e}")
+    if MONGODB_AVAILABLE and mongodb_service:
+        print("🍃 Initialisation de MongoDB...")
+        try:
+            await mongodb_service.connect_async()
+        except Exception as e:
+            print(f"⚠️ Avertissement: MongoDB non disponible - {e}")
+    else:
+        print("⚠️ MongoDB non configuré")
     
     print("✅ Application prête!")
     yield
     
     # Shutdown
     print("🛑 Arrêt de l'application...")
-    mongodb_service.disconnect()
+    if MONGODB_AVAILABLE and mongodb_service:
+        mongodb_service.disconnect()
 
 # Initialisation de l'application FastAPI
 app = FastAPI(
@@ -78,6 +96,13 @@ app.add_middleware(
 # Inclusion des routers
 app.include_router(postgres_router)
 app.include_router(mongo_router)
+app.include_router(real_data_router)  # Nouvelles routes pour les vraies données
+app.include_router(real_mongo_router)  # Routes MongoDB pour les vraies collections
+app.include_router(mongo_livres_router)  # Routes spécifiques pour livres et critiques MongoDB
+
+# Inclure le nouveau router pour les livres si disponible
+if LIVRES_ROUTER_AVAILABLE:
+    app.include_router(livres_router)
 
 # Route de base (publique)
 @app.get("/")
@@ -90,7 +115,10 @@ async def root():
         "docs": "/docs",
         "databases": {
             "postgresql": "/postgres/*",
-            "mongodb": "/mongo/*"
+            "mongodb": "/mongo/*",
+            "mongodb_real": "/mongodb/* (vos vraies données)",
+            "mongo_livres": "/mongo-livres/* (📚 livres et 💬 critiques)",
+            "livres": "/livres/*" if LIVRES_ROUTER_AVAILABLE else "❌ Non disponible"
         },
         "features": [
             "Gestion des livres multi-bases",
@@ -118,14 +146,17 @@ async def health_check():
         status["databases"]["postgresql"] = f"error: {str(e)}"
     
     # Test MongoDB
-    try:
-        if mongodb_service.async_client:
-            await mongodb_service.database.list_collection_names()
-            status["databases"]["mongodb"] = "connected"
-        else:
-            status["databases"]["mongodb"] = "not initialized"
-    except Exception as e:
-        status["databases"]["mongodb"] = f"error: {str(e)}"
+    if MONGODB_AVAILABLE and mongodb_service:
+        try:
+            if mongodb_service.async_client:
+                await mongodb_service.database.list_collection_names()
+                status["databases"]["mongodb"] = "connected"
+            else:
+                status["databases"]["mongodb"] = "not initialized"
+        except Exception as e:
+            status["databases"]["mongodb"] = f"error: {str(e)}"
+    else:
+        status["databases"]["mongodb"] = "not configured"
     
     return status
 
@@ -195,7 +226,10 @@ async def search_books(
     if database == "postgres":
         return item_crud.search_items(db, query, category)
     elif database == "mongo":
-        return await mongodb_service.search_books(query, category)
+        if MONGODB_AVAILABLE and mongodb_service:
+            return await mongodb_service.search_books(query, category)
+        else:
+            raise HTTPException(status_code=503, detail="MongoDB non disponible")
     else:
         raise HTTPException(status_code=400, detail="Base de données non supportée. Utilisez 'postgres' ou 'mongo'")
 
