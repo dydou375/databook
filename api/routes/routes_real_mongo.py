@@ -16,12 +16,25 @@ from auth.auth import require_api_key
 # Router pour les vraies données MongoDB
 real_mongo_router = APIRouter(prefix="/mongodb", tags=["Real MongoDB Data"])
 
-def check_mongodb():
+async def check_mongodb():
     """Vérifier la disponibilité de MongoDB"""
-    if not MONGODB_AVAILABLE or not mongodb_service:
+    if not MONGODB_AVAILABLE:
         raise HTTPException(status_code=503, detail="MongoDB non disponible")
-    if not mongodb_service.database:
-        raise HTTPException(status_code=503, detail="MongoDB non connecté")
+    if mongodb_service is None:
+        raise HTTPException(status_code=503, detail="MongoDB service non disponible")
+    
+    # S'assurer que la connexion async est établie
+    if mongodb_service.database is None:
+        try:
+            await mongodb_service.connect_async()
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Impossible de se connecter à MongoDB: {str(e)}")
+    
+    # Vérifier que la base est accessible
+    try:
+        await mongodb_service.database.list_collection_names()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"MongoDB erreur: {str(e)}")
 
 def serialize_mongo_doc(doc):
     """Convertir un document MongoDB en dict JSON-serializable"""
@@ -43,7 +56,7 @@ def serialize_mongo_doc(doc):
 async def health_check_mongo():
     """Vérifier l'état de MongoDB"""
     try:
-        check_mongodb()
+        await check_mongodb()
         
         # Lister les collections
         collections = await mongodb_service.database.list_collection_names()
@@ -67,7 +80,7 @@ async def health_check_mongo():
 async def list_collections():
     """Lister toutes les collections MongoDB"""
     try:
-        check_mongodb()
+        await check_mongodb()
         collections = await mongodb_service.database.list_collection_names()
         
         collections_info = []
@@ -94,7 +107,7 @@ async def get_collection_data(
 ):
     """Récupérer les données d'une collection spécifique"""
     try:
-        check_mongodb()
+        await check_mongodb()
         
         collection = mongodb_service.database[collection_name]
         
@@ -128,7 +141,7 @@ async def search_in_collection(
 ):
     """Rechercher dans une collection MongoDB"""
     try:
-        check_mongodb()
+        await check_mongodb()
         
         collection = mongodb_service.database[collection_name]
         
@@ -173,7 +186,7 @@ async def search_in_collection(
 async def get_document(collection_name: str, document_id: str):
     """Récupérer un document spécifique par son ID"""
     try:
-        check_mongodb()
+        await check_mongodb()
         
         collection = mongodb_service.database[collection_name]
         
@@ -202,7 +215,7 @@ async def get_document(collection_name: str, document_id: str):
 async def get_mongo_real_statistics(api_key: str = Depends(require_api_key)):
     """Statistiques MongoDB des vraies données (nécessite une clé API)"""
     try:
-        check_mongodb()
+        await check_mongodb()
         
         collections = await mongodb_service.database.list_collection_names()
         
@@ -233,7 +246,7 @@ async def get_collection_sample(
 ):
     """Récupérer un échantillon de documents pour voir la structure"""
     try:
-        check_mongodb()
+        await check_mongodb()
         
         collection = mongodb_service.database[collection_name]
         

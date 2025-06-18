@@ -17,6 +17,8 @@ from routes.routes_mongo import mongo_router
 from routes.routes_real_data import real_data_router
 from routes.routes_real_mongo import real_mongo_router
 from routes.routes_mongo_livres import mongo_livres_router
+from routes.routes_mongo_extras import mongo_extras_router
+from routes.auth_routes import auth_router  # Nouveau : routes d'authentification
 try:
     from routes.routes_livres import livres_router
     LIVRES_ROUTER_AVAILABLE = True
@@ -99,6 +101,8 @@ app.include_router(mongo_router)
 app.include_router(real_data_router)  # Nouvelles routes pour les vraies données
 app.include_router(real_mongo_router)  # Routes MongoDB pour les vraies collections
 app.include_router(mongo_livres_router)  # Routes spécifiques pour livres et critiques MongoDB
+app.include_router(mongo_extras_router)  # Routes avancées MongoDB
+app.include_router(auth_router)  # Inclure le nouveau router pour les routes d'authentification
 
 # Inclure le nouveau router pour les livres si disponible
 if LIVRES_ROUTER_AVAILABLE:
@@ -118,12 +122,25 @@ async def root():
             "mongodb": "/mongo/*",
             "mongodb_real": "/mongodb/* (vos vraies données)",
             "mongo_livres": "/mongo-livres/* (📚 livres et 💬 critiques)",
+            "mongo_extras": "/mongo-extras/* (🎯 analytics avancés)",
             "livres": "/livres/*" if LIVRES_ROUTER_AVAILABLE else "❌ Non disponible"
+        },
+        "authentication": {
+            "jwt": {
+                "login": "/auth/login",
+                "token": "/auth/token", 
+                "register": "/auth/register",
+                "me": "/auth/me",
+                "refresh": "/auth/refresh"
+            },
+            "legacy_api_key": "X-API-Key header (en cours de dépréciation)",
+            "migration_info": "Nouvelles routes utilisent JWT, anciennes utilisent encore clé API"
         },
         "features": [
             "Gestion des livres multi-bases",
             "Recherche avancée",
             "Analytics temps réel",
+            "Authentification JWT moderne",
             "API sécurisée"
         ]
     }
@@ -148,7 +165,7 @@ async def health_check():
     # Test MongoDB
     if MONGODB_AVAILABLE and mongodb_service:
         try:
-            if mongodb_service.async_client:
+            if mongodb_service.async_client is not None:
                 await mongodb_service.database.list_collection_names()
                 status["databases"]["mongodb"] = "connected"
             else:
