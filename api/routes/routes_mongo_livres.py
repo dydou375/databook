@@ -11,7 +11,7 @@ except ImportError:
     MONGODB_AVAILABLE = False
     mongodb_service = None
 
-from auth.auth import require_api_key
+from auth.auth import require_jwt, optional_jwt
 
 # Router spécifique pour les livres MongoDB
 mongo_livres_router = APIRouter(prefix="/mongo-livres", tags=["MongoDB - Livres & Critiques"])

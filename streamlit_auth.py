@@ -984,37 +984,384 @@ def show_analytics():
 
 def show_postgres_data():
     """Page données PostgreSQL"""
-    st.header("🗄️ Données PostgreSQL")
+    st.header("🗄️ Données PostgreSQL - Schéma Test")
     
-    headers = {"Authorization": f"Bearer {st.session_state.token}"}
+    # Utilisation de l'authentification JWT
+    jwt_headers = {"Authorization": f"Bearer {st.session_state.token}"}
     
-    # Users
-    st.subheader("👥 Utilisateurs")
-    status_code, response = make_api_request("/postgres/users/", headers=headers)
+    # Ajouter des onglets pour organiser le contenu
+    tab1, tab2, tab3 = st.tabs(["📚 Livres", "📊 Analytics & Graphiques", "🔧 Debug"])
     
-    if status_code == 200:
-        users = response
-        if users:
-            df_users = pd.DataFrame(users)
-            st.dataframe(df_users, use_container_width=True)
+    with tab1:
+        # Livres de la vraie base de données (schéma test)
+        st.subheader("📚 Livres PostgreSQL (Schéma Test)")
+        
+        # Paramètres de recherche
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            search_query = st.text_input("🔍 Rechercher un livre", placeholder="Titre du livre...")
+        with col2:
+            limit = st.selectbox("Nombre de résultats", [10, 20, 50, 100], index=1)
+        with col3:
+            # Bouton pour rafraîchir
+            if st.button("🔄 Actualiser"):
+                st.rerun()
+        
+        # Construire les paramètres de recherche
+        params = {"limit": limit}
+        if search_query:
+            params["search"] = search_query
+        
+        # Appel API pour les livres
+        status_code, response = make_api_request("/postgres/livres", params=params)
+        
+        if status_code == 200:
+            livres = response.get("data", response) if isinstance(response, dict) else response
+            if livres:
+                st.success(f"✅ {len(livres)} livre(s) trouvé(s)")
+                
+                # Affichage des livres
+                for livre in livres:
+                    with st.expander(f"📖 {livre.get('titre', 'Titre inconnu')} - {livre.get('auteur_nom', 'Auteur inconnu')}"):
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.write(f"**📖 Titre:** {livre.get('titre', 'N/A')}")
+                            st.write(f"**✍️ Auteur:** {livre.get('auteur_nom', 'N/A')} {livre.get('auteur_prenom', '')}")
+                            st.write(f"**📘 Sous-titre:** {livre.get('sous_titre', 'N/A')}")
+                            if livre.get('description'):
+                                description = livre['description'][:200] + "..." if len(livre.get('description', '')) > 200 else livre['description']
+                                st.write(f"**📝 Description:** {description}")
+                            st.write(f"**🏢 Éditeur:** {livre.get('editeur_nom', 'N/A')}")
+                            st.write(f"**🌍 Pays:** {livre.get('editeur_pays', 'N/A')}")
+                        
+                        with col2:
+                            if livre.get('isbn_10'):
+                                st.write(f"**📚 ISBN-10:** {livre['isbn_10']}")
+                            if livre.get('isbn_13'):
+                                st.write(f"**📚 ISBN-13:** {livre['isbn_13']}")
+                            if livre.get('date_publication'):
+                                st.write(f"**📅 Publication:** {livre['date_publication']}")
+                            if livre.get('annee_publication'):
+                                st.write(f"**📅 Année:** {livre['annee_publication']}")
+                            if livre.get('nombre_pages'):
+                                st.write(f"**📄 Pages:** {livre['nombre_pages']}")
+                            if livre.get('format_physique'):
+                                st.write(f"**📏 Format:** {livre['format_physique']}")
+                            if livre.get('langue_nom'):
+                                st.write(f"**🌐 Langue:** {livre['langue_nom']}")
+                            if livre.get('sujet_nom'):
+                                st.write(f"**🏷️ Sujet:** {livre['sujet_nom']}")
+            else:
+                st.info("Aucun livre PostgreSQL trouvé dans le schéma test")
         else:
-            st.info("Aucun utilisateur PostgreSQL trouvé")
-    else:
-        st.error(f"❌ Erreur: {response}")
-    
-    # Books
-    st.subheader("📚 Livres PostgreSQL")
-    status_code, response = make_api_request("/postgres/books/", headers=headers)
-    
-    if status_code == 200:
-        books = response
-        if books:
-            df_books = pd.DataFrame(books)
-            st.dataframe(df_books, use_container_width=True)
+            st.error(f"❌ Erreur lors de la récupération des livres: {response}")
+        
+        # Statistiques PostgreSQL réelles (nécessite JWT)
+        st.subheader("📊 Statistiques PostgreSQL - Vraies Données")
+        status_code, response = make_api_request("/postgres/livres/stats/general", headers=jwt_headers)
+        
+        if status_code == 200:
+            stats = response
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📚 Total livres", stats.get("total_livres", 0))
+            with col2:
+                st.metric("✍️ Total auteurs", stats.get("total_auteurs", 0))
+            with col3:
+                st.metric("🏢 Total éditeurs", stats.get("total_editeurs", 0))
+            with col4:
+                st.metric("🌐 Total langues", stats.get("total_langues", 0))
+            
+            st.info(f"📊 Base: {stats.get('database', 'PostgreSQL (schéma test)')}")
         else:
-            st.info("Aucun livre PostgreSQL trouvé")
-    else:
-        st.error(f"❌ Erreur: {response}")
+            st.warning(f"⚠️ Impossible de charger les statistiques: {response}")
+    
+    with tab2:
+        # NOUVELLE SECTION : Analytics PostgreSQL avec graphiques
+        st.subheader("📊 Analytics PostgreSQL - Graphiques")
+        st.info("🆕 **Nouveau !** Analytics PostgreSQL équivalents à MongoDB")
+        
+        # Récupérer les analytics PostgreSQL
+        status_analytics, analytics_response = make_api_request("/postgres-extras/analytics", headers=jwt_headers)
+        
+        if status_analytics == 200 and analytics_response.get("success"):
+            analytics = analytics_response.get("analytics", {})
+            
+            # Section 1: Statistiques générales
+            st.subheader("🎯 Statistiques Générales")
+            stats_gen = analytics.get("statistiques_generales", {})
+            if stats_gen:
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col1:
+                    st.metric("📚 Livres", f"{stats_gen.get('total_livres', 0):,}")
+                with col2:
+                    st.metric("✍️ Auteurs", f"{stats_gen.get('total_auteurs', 0):,}")
+                with col3:
+                    st.metric("🏢 Éditeurs", f"{stats_gen.get('total_editeurs', 0):,}")
+                with col4:
+                    st.metric("🌐 Langues", f"{stats_gen.get('total_langues', 0):,}")
+                with col5:
+                    st.metric("🏷️ Sujets", f"{stats_gen.get('total_sujets', 0):,}")
+            
+            # Section 2: Graphiques
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Top auteurs
+                if "top_auteurs" in analytics:
+                    st.subheader("✍️ Top 10 des Auteurs")
+                    top_auteurs = analytics["top_auteurs"][:10]
+                    if top_auteurs:
+                        import pandas as pd
+                        import plotly.express as px
+                        
+                        df_auteurs = pd.DataFrame(top_auteurs)
+                        df_auteurs.columns = ["Auteur", "Nombre de livres"]
+                        fig = px.bar(
+                            df_auteurs, 
+                            x="Auteur", 
+                            y="Nombre de livres",
+                            title="Top 10 des auteurs PostgreSQL",
+                            color="Nombre de livres",
+                            color_continuous_scale="Blues"
+                        )
+                        fig.update_layout(xaxis_tickangle=45)
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Top éditeurs
+                if "top_editeurs" in analytics:
+                    st.subheader("🏢 Top 10 des Éditeurs")
+                    top_editeurs = analytics["top_editeurs"][:10]
+                    if top_editeurs:
+                        df_editeurs = pd.DataFrame(top_editeurs)
+                        df_editeurs["label"] = df_editeurs["editeur"] + " (" + df_editeurs["pays"].fillna("N/A") + ")"
+                        fig = px.bar(
+                            df_editeurs, 
+                            x="label", 
+                            y="nb_livres",
+                            title="Top 10 des éditeurs PostgreSQL",
+                            color="nb_livres",
+                            color_continuous_scale="Greens"
+                        )
+                        fig.update_layout(xaxis_tickangle=45)
+                        fig.update_xaxes(title="Éditeur (Pays)")
+                        fig.update_yaxes(title="Nombre de livres")
+                        st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Répartition par langues
+                if "repartition_langues" in analytics:
+                    st.subheader("🌍 Répartition par Langues")
+                    langues_data = analytics["repartition_langues"][:10]
+                    if langues_data:
+                        df_langues = pd.DataFrame(langues_data)
+                        fig = px.pie(
+                            df_langues, 
+                            values="nb_livres", 
+                            names="langue",
+                            title="Répartition des livres par langue"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Top sujets/genres
+                if "top_sujets" in analytics:
+                    st.subheader("🏷️ Top Sujets/Genres")
+                    top_sujets = analytics["top_sujets"][:10]
+                    if top_sujets:
+                        df_sujets = pd.DataFrame(top_sujets)
+                        df_sujets["label"] = df_sujets["sujet"] + " (" + df_sujets["categorie"].fillna("N/A") + ")"
+                        fig = px.bar(
+                            df_sujets, 
+                            x="label", 
+                            y="nb_livres",
+                            title="Top 10 des sujets PostgreSQL",
+                            color="nb_livres",
+                            color_continuous_scale="Purples"
+                        )
+                        fig.update_layout(xaxis_tickangle=45)
+                        fig.update_xaxes(title="Sujet (Catégorie)")
+                        fig.update_yaxes(title="Nombre de livres")
+                        st.plotly_chart(fig, use_container_width=True)
+            
+            # Section 3: Graphiques d'évolution temporelle
+            st.subheader("📅 Évolution Temporelle")
+            
+            if "repartition_annees" in analytics:
+                annees_data = analytics["repartition_annees"]
+                if annees_data:
+                    df_annees = pd.DataFrame(annees_data)
+                    df_annees = df_annees.sort_values("annee")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Graphique en courbe
+                        fig_line = px.line(
+                            df_annees, 
+                            x="annee", 
+                            y="nb_livres",
+                            title="Évolution du nombre de livres par année",
+                            markers=True
+                        )
+                        fig_line.update_xaxes(title="Année de publication")
+                        fig_line.update_yaxes(title="Nombre de livres")
+                        st.plotly_chart(fig_line, use_container_width=True)
+                    
+                    with col2:
+                        # Graphique en barres des 10 dernières années
+                        df_recent = df_annees.tail(10)
+                        fig_bar = px.bar(
+                            df_recent, 
+                            x="annee", 
+                            y="nb_livres",
+                            title="10 dernières années (livres publiés)",
+                            color="nb_livres",
+                            color_continuous_scale="Oranges"
+                        )
+                        fig_bar.update_xaxes(title="Année")
+                        fig_bar.update_yaxes(title="Nombre de livres")
+                        st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # Section 4: Statistiques des pages
+            if "statistiques_pages" in analytics:
+                stats_pages = analytics["statistiques_pages"]
+                if stats_pages and stats_pages.get("total_avec_pages", 0) > 0:
+                    st.subheader("📄 Statistiques des Pages")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("📖 Pages min", f"{stats_pages.get('min_pages', 0)}")
+                    with col2:
+                        st.metric("📚 Pages max", f"{stats_pages.get('max_pages', 0)}")
+                    with col3:
+                        st.metric("📊 Moyenne", f"{stats_pages.get('avg_pages', 0)}")
+                    with col4:
+                        st.metric("📈 Total avec pages", f"{stats_pages.get('total_avec_pages', 0):,}")
+                    
+                    # Récupérer la distribution des pages
+                    status_pages, pages_response = make_api_request("/postgres-extras/livres/stats-pages", headers=jwt_headers)
+                    if status_pages == 200 and pages_response.get("success"):
+                        distribution = pages_response.get("distribution", [])
+                        if distribution:
+                            df_pages = pd.DataFrame(distribution)
+                            fig_pages = px.bar(
+                                df_pages, 
+                                x="tranche", 
+                                y="nb_livres",
+                                title="Distribution des livres par nombre de pages",
+                                color="nb_livres",
+                                color_continuous_scale="Reds"
+                            )
+                            fig_pages.update_xaxes(title="Tranche de pages")
+                            fig_pages.update_yaxes(title="Nombre de livres")
+                            st.plotly_chart(fig_pages, use_container_width=True)
+            
+            # Section 5: Formats physiques
+            if "repartition_formats" in analytics:
+                formats_data = analytics["repartition_formats"]
+                if formats_data:
+                    st.subheader("📖 Formats Physiques")
+                    df_formats = pd.DataFrame(formats_data)
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Graphique en secteurs
+                        fig_pie = px.pie(
+                            df_formats, 
+                            values="nb_livres", 
+                            names="format",
+                            title="Répartition par format physique"
+                        )
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                    
+                    with col2:
+                        # Graphique en barres horizontales
+                        fig_bar = px.bar(
+                            df_formats.head(10), 
+                            x="nb_livres", 
+                            y="format",
+                            orientation='h',
+                            title="Top 10 des formats",
+                            color="nb_livres",
+                            color_continuous_scale="Viridis"
+                        )
+                        fig_bar.update_xaxes(title="Nombre de livres")
+                        fig_bar.update_yaxes(title="Format physique")
+                        st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # Bouton pour actualiser les analytics
+            if st.button("🔄 Actualiser les analytics PostgreSQL"):
+                st.rerun()
+                
+        else:
+            st.error(f"❌ Impossible de charger les analytics PostgreSQL: {analytics_response}")
+            st.info("💡 Vérifiez que l'API est démarrée et que vous êtes bien authentifié")
+    
+    with tab3:
+        # Section de debug
+        st.subheader("🔧 Debug - Informations techniques")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📋 Lister les tables"):
+                debug_status, debug_response = make_api_request("/postgres/livres/debug/tables")
+                if debug_status == 200:
+                    st.success("✅ Tables du schéma test:")
+                    tables = debug_response.get("tables", [])
+                    counts = debug_response.get("table_counts", {})
+                    
+                    for table in tables:
+                        count = counts.get(table, "?")
+                        st.write(f"• **{table}**: {count} enregistrements")
+                else:
+                    st.error(f"❌ Erreur debug: {debug_response}")
+        
+        with col2:
+            if st.button("📊 Stats détaillées"):
+                stats_status, stats_response = make_api_request("/postgres/livres/stats/general", headers=jwt_headers)
+                if stats_status == 200:
+                    st.success("✅ Statistiques détaillées:")
+                    st.json(stats_response)
+                else:
+                    st.error(f"❌ Erreur stats: {stats_response}")
+        
+        # Test simple pour voir la structure de base
+        st.write("**Test de requête simple:**")
+        if st.button("🔍 Tester requête basique"):
+            basic_status, basic_response = make_api_request("/postgres/livres?limit=1")
+            if basic_status == 200:
+                if basic_response:
+                    st.success("✅ Requête réussie!")
+                    st.json(basic_response[0] if isinstance(basic_response, list) else basic_response)
+                else:
+                    st.warning("⚠️ Aucun résultat mais pas d'erreur")
+            else:
+                st.error(f"❌ Erreur: {basic_response}")
+        
+        # Test des nouveaux endpoints analytics
+        st.subheader("🆕 Test des nouveaux endpoints analytics")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📊 Tester analytics complet"):
+                test_status, test_response = make_api_request("/postgres-extras/analytics", headers=jwt_headers)
+                if test_status == 200:
+                    st.success("✅ Analytics PostgreSQL OK!")
+                    st.json(test_response)
+                else:
+                    st.error(f"❌ Erreur analytics: {test_response}")
+        
+        with col2:
+            if st.button("✍️ Tester top auteurs"):
+                test_status, test_response = make_api_request("/postgres-extras/auteurs/top?limit=5", headers=jwt_headers)
+                if test_status == 200:
+                    st.success("✅ Top auteurs OK!")
+                    st.json(test_response)
+                else:
+                    st.error(f"❌ Erreur top auteurs: {test_response}")
 
 def show_user_profile():
     """Page profil utilisateur"""

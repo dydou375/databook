@@ -8,11 +8,13 @@ from contextlib import asynccontextmanager
 from models.models import User, UserCreate, UserUpdate, Item, ItemCreate, ItemUpdate
 from database.database import get_db, init_db, check_db_connection
 from database.crud import user_crud, item_crud
-from auth.auth import require_api_key
+from auth.auth import require_jwt, optional_jwt
 from config.config import settings
 
 # Import des nouveaux routers
 from routes.routes_postgres import postgres_router
+from routes.routes_postgres_livres import postgres_livres_router  # Nouveau : routes pour les vraies données PostgreSQL
+from routes.routes_postgres_extras import postgres_extras_router  # Nouveau : analytics PostgreSQL
 from routes.routes_mongo import mongo_router
 from routes.routes_real_data import real_data_router
 from routes.routes_real_mongo import real_mongo_router
@@ -97,6 +99,8 @@ app.add_middleware(
 
 # Inclusion des routers
 app.include_router(postgres_router)
+app.include_router(postgres_livres_router)  # Routes pour les vraies données PostgreSQL (schéma test)
+app.include_router(postgres_extras_router)  # Routes analytics PostgreSQL
 app.include_router(mongo_router)
 app.include_router(real_data_router)  # Nouvelles routes pour les vraies données
 app.include_router(real_mongo_router)  # Routes MongoDB pour les vraies collections
@@ -118,7 +122,9 @@ async def root():
         "timestamp": datetime.now(),
         "docs": "/docs",
         "databases": {
-            "postgresql": "/postgres/*",
+            "postgresql": "/postgres/* (legacy users + stats)",
+            "postgresql_livres": "/postgres/livres/* (📚 vraies données schéma test)",
+            "postgresql_analytics": "/postgres-extras/* (📊 graphiques PostgreSQL)",
             "mongodb": "/mongo/*",
             "mongodb_real": "/mongodb/* (vos vraies données)",
             "mongo_livres": "/mongo-livres/* (📚 livres et 💬 critiques)",
@@ -133,15 +139,17 @@ async def root():
                 "me": "/auth/me",
                 "refresh": "/auth/refresh"
             },
-            "legacy_api_key": "X-API-Key header (en cours de dépréciation)",
-            "migration_info": "Nouvelles routes utilisent JWT, anciennes utilisent encore clé API"
+            "info": "🔐 Authentification JWT moderne - Clé API supprimée",
+            "migration_status": "✅ Migration complète vers JWT terminée"
         },
         "features": [
-            "Gestion des livres multi-bases",
-            "Recherche avancée",
-            "Analytics temps réel",
-            "Authentification JWT moderne",
-            "API sécurisée"
+            "📚 Gestion des vraies données de livres (PostgreSQL schéma test)",
+            "🔍 Recherche avancée avec jointures complètes", 
+            "📊 Analytics temps réel MongoDB ET PostgreSQL",
+            "📈 Graphiques et visualisations pour les deux BDD",
+            "🔐 Authentification JWT moderne (plus de clé API)",
+            "🛡️ API sécurisée et nettoyée",
+            "🗂️ Structure de base optimisée (auteur, editeur, langue, sujet)"
         ]
     }
 
@@ -179,57 +187,25 @@ async def health_check():
 
 # Routes legacy (maintien de la compatibilité)
 @app.post("/users/", response_model=User, tags=["Legacy"])
-async def create_user(user: UserCreate, db=Depends(get_db), api_key: str = Depends(require_api_key)):
+async def create_user(user: UserCreate, db=Depends(get_db), current_user = Depends(require_jwt)):
     """Créer un nouvel utilisateur (legacy - utilisez /postgres/users/)"""
     return user_crud.create_user(db, user)
 
 @app.get("/users/", response_model=List[User], tags=["Legacy"])
-async def get_users(skip: int = 0, limit: int = 100, db=Depends(get_db), api_key: str = Depends(require_api_key)):
+async def get_users(skip: int = 0, limit: int = 100, db=Depends(get_db), current_user = Depends(require_jwt)):
     """Récupérer la liste des utilisateurs (legacy - utilisez /postgres/users/)"""
     return user_crud.get_users(db, skip=skip, limit=limit)
 
 @app.get("/users/{user_id}", response_model=User, tags=["Legacy"])
-async def get_user(user_id: int, db=Depends(get_db), api_key: str = Depends(require_api_key)):
+async def get_user(user_id: int, db=Depends(get_db), current_user = Depends(require_jwt)):
     """Récupérer un utilisateur par son ID (legacy - utilisez /postgres/users/{user_id})"""
     user = user_crud.get_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     return user
 
-# Routes legacy pour les livres (redirigent vers PostgreSQL)
-@app.get("/books/", response_model=List[Item], tags=["Legacy"])
-async def get_books(skip: int = 0, limit: int = 100, db=Depends(get_db)):
-    """Récupérer la liste des livres (legacy - utilisez /postgres/books/)"""
-    return item_crud.get_items(db, skip=skip, limit=limit)
-
-@app.get("/books/{book_id}", response_model=Item, tags=["Legacy"])
-async def get_book(book_id: int, db=Depends(get_db)):
-    """Récupérer un livre par son ID (legacy - utilisez /postgres/books/{book_id})"""
-    book = item_crud.get_item(db, book_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Livre non trouvé")
-    return book
-
-@app.post("/books/", response_model=Item, tags=["Legacy"])
-async def create_book(book: ItemCreate, db=Depends(get_db), api_key: str = Depends(require_api_key)):
-    """Créer un nouveau livre (legacy - utilisez /postgres/books/)"""
-    return item_crud.create_item(db, book)
-
-@app.put("/books/{book_id}", response_model=Item, tags=["Legacy"])
-async def update_book(book_id: int, book_update: ItemUpdate, db=Depends(get_db), api_key: str = Depends(require_api_key)):
-    """Mettre à jour un livre (legacy - utilisez /postgres/books/{book_id})"""
-    book = item_crud.update_item(db, book_id, book_update)
-    if not book:
-        raise HTTPException(status_code=404, detail="Livre non trouvé")
-    return book
-
-@app.delete("/books/{book_id}", tags=["Legacy"])
-async def delete_book(book_id: int, db=Depends(get_db), api_key: str = Depends(require_api_key)):
-    """Supprimer un livre (legacy - utilisez /postgres/books/{book_id})"""
-    success = item_crud.delete_item(db, book_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Livre non trouvé")
-    return {"message": "Livre supprimé avec succès"}
+# Note: Les routes legacy /books/ ont été supprimées car nous n'utilisons plus
+# la table 'books'. Utilisez /postgres/livres/ pour accéder aux vraies données.
 
 # Route de recherche globale
 @app.get("/search/", tags=["Search"])
@@ -252,13 +228,20 @@ async def search_books(
 
 # Routes de statistiques globales
 @app.get("/stats/", tags=["Statistics"])
-async def get_global_statistics(db=Depends(get_db), api_key: str = Depends(require_api_key)):
+async def get_global_statistics(db=Depends(get_db), current_user = Depends(require_jwt)):
     """Récupérer les statistiques globales des deux bases de données"""
-    postgres_stats = {
-        "total_users": user_crud.count_users(db),
-        "total_books": item_crud.count_items(db),
-    }
     
+    # Stats PostgreSQL (tables legacy)
+    try:
+        postgres_stats = {
+            "total_users": user_crud.count_users(db),
+            "total_books": 0,  # Plus de table books générique
+            "note": "Utilisez /postgres/livres/stats/general pour les vraies stats des livres"
+        }
+    except Exception as e:
+        postgres_stats = {"error": f"Erreur PostgreSQL: {str(e)}"}
+    
+    # Stats MongoDB
     try:
         mongo_stats = await mongodb_service.get_statistics()
     except Exception:
@@ -267,12 +250,13 @@ async def get_global_statistics(db=Depends(get_db), api_key: str = Depends(requi
     return {
         "postgres": postgres_stats,
         "mongodb": mongo_stats,
-        "timestamp": datetime.now()
+        "timestamp": datetime.now(),
+        "recommendation": "Utilisez /postgres/livres/stats/general pour les vraies statistiques des livres"
     }
 
 # Route pour tester la connexion aux bases de données
 @app.get("/db-status/", tags=["System"])
-async def database_status(db=Depends(get_db), api_key: str = Depends(require_api_key)):
+async def database_status(db=Depends(get_db), current_user = Depends(require_jwt)):
     """Vérifier le statut des bases de données"""
     status = {"timestamp": datetime.now()}
     

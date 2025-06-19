@@ -11,7 +11,7 @@ except ImportError:
     MONGODB_AVAILABLE = False
     mongodb_service = None
 
-from auth.auth import require_api_key
+from auth.auth import require_jwt, optional_jwt
 
 # Router pour les vraies données MongoDB
 real_mongo_router = APIRouter(prefix="/mongodb", tags=["Real MongoDB Data"])
@@ -212,8 +212,8 @@ async def get_document(collection_name: str, document_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @real_mongo_router.get("/statistics/")
-async def get_mongo_real_statistics(api_key: str = Depends(require_api_key)):
-    """Statistiques MongoDB des vraies données (nécessite une clé API)"""
+async def get_mongo_real_statistics(current_user = Depends(require_jwt)):
+    """Statistiques MongoDB des vraies données (nécessite une authentification JWT)"""
     try:
         await check_mongodb()
         

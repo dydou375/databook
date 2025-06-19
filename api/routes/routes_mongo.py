@@ -9,7 +9,7 @@ try:
 except ImportError:
     MONGODB_AVAILABLE = False
     mongodb_service = None
-from auth.auth import require_api_key
+from auth.auth import require_jwt, optional_jwt
 
 # Router pour les endpoints MongoDB
 mongo_router = APIRouter(prefix="/mongo", tags=["MongoDB"])
@@ -65,18 +65,18 @@ async def search_mongo_books(
 @mongo_router.post("/books/", response_model=BookMongo)
 async def create_mongo_book(
     book: BookMongoCreate,
-    api_key: str = Depends(require_api_key)
+    current_user = Depends(require_jwt)
 ):
-    """Créer un nouveau livre dans MongoDB (nécessite une clé API)"""
+    """Créer un nouveau livre dans MongoDB (nécessite une authentification JWT)"""
     return await mongodb_service.create_book(book)
 
 @mongo_router.put("/books/{book_id}", response_model=BookMongo)
 async def update_mongo_book(
     book_id: str,
     book_update: BookMongoUpdate,
-    api_key: str = Depends(require_api_key)
+    current_user = Depends(require_jwt)
 ):
-    """Mettre à jour un livre dans MongoDB (nécessite une clé API)"""
+    """Mettre à jour un livre dans MongoDB (nécessite une authentification JWT)"""
     updated_book = await mongodb_service.update_book(book_id, book_update)
     if not updated_book:
         raise HTTPException(status_code=404, detail="Livre non trouvé dans MongoDB")
@@ -85,9 +85,9 @@ async def update_mongo_book(
 @mongo_router.delete("/books/{book_id}")
 async def delete_mongo_book(
     book_id: str,
-    api_key: str = Depends(require_api_key)
+    current_user = Depends(require_jwt)
 ):
-    """Supprimer un livre dans MongoDB (nécessite une clé API)"""
+    """Supprimer un livre dans MongoDB (nécessite une authentification JWT)"""
     success = await mongodb_service.delete_book(book_id)
     if not success:
         raise HTTPException(status_code=404, detail="Livre non trouvé dans MongoDB")
@@ -95,14 +95,14 @@ async def delete_mongo_book(
 
 # Endpoints pour les statistiques MongoDB
 @mongo_router.get("/statistics/")
-async def get_mongo_statistics(api_key: str = Depends(require_api_key)):
-    """Récupérer les statistiques MongoDB (nécessite une clé API)"""
+async def get_mongo_statistics(current_user = Depends(require_jwt)):
+    """Récupérer les statistiques MongoDB (nécessite une authentification JWT)"""
     return await mongodb_service.get_statistics()
 
 # Endpoint de synchronisation entre PostgreSQL et MongoDB
 @mongo_router.post("/sync/")
-async def sync_data(api_key: str = Depends(require_api_key)):
-    """Synchroniser les données entre PostgreSQL et MongoDB (nécessite une clé API)"""
+async def sync_data(current_user = Depends(require_jwt)):
+    """Synchroniser les données entre PostgreSQL et MongoDB (nécessite une authentification JWT)"""
     # Cette fonction pourrait être implémentée pour synchroniser les données
     return {
         "message": "Synchronisation des données déclenchée",
