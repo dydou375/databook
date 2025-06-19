@@ -27,9 +27,9 @@ class MongoDBService:
     def connect(self):
         """Connexion synchrone à MongoDB"""
         try:
-            self.client = MongoClient(settings.mongodb_url)
+            self.client = MongoClient(settings.get_mongodb_url())
             self.sync_db = self.client[settings.mongodb_database]
-            print(f"✅ Connexion MongoDB synchrone réussie: {settings.mongodb_url}")
+            print(f"✅ Connexion MongoDB synchrone réussie: {settings.get_mongodb_url()}")
         except Exception as e:
             print(f"❌ Erreur de connexion MongoDB synchrone: {e}")
             raise
@@ -37,11 +37,11 @@ class MongoDBService:
     async def connect_async(self):
         """Connexion asynchrone à MongoDB"""
         try:
-            self.async_client = AsyncIOMotorClient(settings.mongodb_url)
+            self.async_client = AsyncIOMotorClient(settings.get_mongodb_url())
             self.database = self.async_client[settings.mongodb_database]
             # Test de connexion
             await self.database.list_collection_names()
-            print(f"✅ Connexion MongoDB asynchrone réussie: {settings.mongodb_url}")
+            print(f"✅ Connexion MongoDB asynchrone réussie: {settings.get_mongodb_url()}")
         except Exception as e:
             print(f"❌ Erreur de connexion MongoDB asynchrone: {e}")
             raise

@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     postgres_user: str = os.getenv("POSTGRES_USER", "postgres")
     postgres_password: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     
-    @property
-    def database_url(self) -> str:
+    def get_database_url(self) -> str:
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}?options=-csearch_path%3Dtest"
     
     # MongoDB
@@ -27,8 +26,7 @@ class Settings(BaseSettings):
     mongodb_port: int = int(os.getenv("MONGODB_PORT", "27017"))
     mongodb_database: str = os.getenv("MONGODB_DATABASE", "databook")
     
-    @property
-    def mongodb_url(self) -> str:
+    def get_mongodb_url(self) -> str:
         return f"mongodb://{self.mongodb_host}:{self.mongodb_port}"
     
     # Configuration de l'application
@@ -53,6 +51,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"  # Permet les attributs supplémentaires pour Pydantic 2
 
 # Instance globale des paramètres
 settings = Settings() 

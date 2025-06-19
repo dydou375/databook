@@ -7,7 +7,7 @@ import os
 from config.config import settings
 
 # Configuration de la base de données principale
-DATABASE_URL = settings.database_url
+DATABASE_URL = settings.get_database_url()
 
 # Création du moteur de base de données
 engine = create_engine(
@@ -67,7 +67,7 @@ class BookDB(Base):
 ItemDB = BookDB
 
 # Fonction pour obtenir une session de base de données
-def get_db() -> Session:
+def get_db():
     db = SessionLocal()
     try:
         yield db
@@ -127,7 +127,7 @@ try:
     
     def get_mongodb():
         """Obtenir une connexion MongoDB"""
-        client = MongoClient(settings.mongodb_url)
+        client = MongoClient(settings.get_mongodb_url())
         db = client[settings.mongodb_database]
         return db
         
