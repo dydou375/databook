@@ -10,22 +10,7 @@ from auth.auth import require_jwt, optional_jwt
 # Router pour les endpoints PostgreSQL d'analytics/visualisation
 postgres_extras_router = APIRouter(prefix="/postgres-extras", tags=["PostgreSQL - Analytics & Visualisation"])
 
-@postgres_extras_router.get("/")
-async def accueil_postgres_extras():
-    """🎯 Fonctionnalités d'analytics PostgreSQL"""
-    return {
-        "message": "🎯 Analytics PostgreSQL - Graphiques et Visualisations",
-        "endpoints": {
-            "analytics": "GET /postgres-extras/analytics - Analytics avancés PostgreSQL",
-            "top_auteurs": "GET /postgres-extras/auteurs/top - Top des auteurs",
-            "top_editeurs": "GET /postgres-extras/editeurs/top - Top des éditeurs", 
-            "stats_annees": "GET /postgres-extras/livres/stats-annees - Répartition par années",
-            "stats_langues": "GET /postgres-extras/livres/stats-langues - Répartition par langues",
-            "stats_pages": "GET /postgres-extras/livres/stats-pages - Statistiques des pages",
-            "stats_formats": "GET /postgres-extras/livres/stats-formats - Répartition par formats"
-        },
-        "note": "Ces endpoints sont équivalents aux analytics MongoDB pour les graphiques"
-    }
+# ❌ Page d'accueil supprimée - info incluse dans GET / principal
 
 @postgres_extras_router.get("/analytics")
 async def analytics_avances_postgres(

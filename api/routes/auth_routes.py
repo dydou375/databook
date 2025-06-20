@@ -32,45 +32,15 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     # Créer l'utilisateur
     return user_crud.create_user(db=db, user=user)
 
-@auth_router.post("/token", response_model=Token)
-async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-):
-    """Connexion et génération de token JWT"""
-    # Authentifier l'utilisateur (username = email dans notre cas)
-    user = user_crud.get_user_by_email(db, email=form_data.username)
-    
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Créer le token d'accès
-    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "expires_in": settings.access_token_expire_minutes * 60,  # en secondes
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "full_name": f"{user.first_name} {user.last_name}"
-        }
-    }
+# ❌ Endpoint /auth/token supprimé pour simplification
+# Utilisez /auth/login qui accepte JSON ET form-data OAuth2
 
 @auth_router.post("/login", response_model=Token)
-async def login_json(
+async def login_unified(
     credentials: Dict[str, str],
     db: Session = Depends(get_db)
 ):
-    """Connexion avec JSON (email/password)"""
+    """🔐 Connexion unifiée avec JSON (email/password)"""
     email = credentials.get("email")
     password = credentials.get("password")
     
@@ -138,13 +108,5 @@ async def logout(current_user: User = Depends(get_current_active_user)):
         "detail": "Supprimez le token côté client"
     }
 
-# Routes d'administration (exemple)
-@auth_router.get("/protected")
-async def protected_route(current_user: User = Depends(get_current_active_user)):
-    """Route protégée par JWT - exemple"""
-    return {
-        "message": f"Bonjour {current_user.first_name} {current_user.last_name}!",
-        "user_id": current_user.id,
-        "email": current_user.email,
-        "access_level": "authenticated"
-    } 
+# ❌ Route protégée d'exemple supprimée pour simplification
+# Toutes les routes nécessitant une authentification utilisent get_current_active_user 

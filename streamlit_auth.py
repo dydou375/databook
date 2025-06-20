@@ -277,10 +277,16 @@ def show_main_app():
         if "current_page" not in st.session_state:
             st.session_state.current_page = "🏠 Accueil"
         
+        # Rediriger les anciennes pages supprimées vers MongoDB
+        if st.session_state.current_page in ["💬 Critiques", "🎯 Analytics"]:
+            st.session_state.current_page = "🍃 MongoDB"
+        
+        available_pages = ["🏠 Accueil", "🍃 MongoDB", "🗄️ PostgreSQL", "👤 Mon Profil"]
+        
         page = st.selectbox(
             "Choisir une page",
-            ["🏠 Accueil", "📚 Livres MongoDB", "💬 Critiques", "🎯 Analytics", "🗄️ PostgreSQL", "👤 Mon Profil"],
-            index=["🏠 Accueil", "📚 Livres MongoDB", "💬 Critiques", "🎯 Analytics", "🗄️ PostgreSQL", "👤 Mon Profil"].index(st.session_state.current_page),
+            available_pages,
+            index=available_pages.index(st.session_state.current_page) if st.session_state.current_page in available_pages else 0,
             key="navigation_selectbox"
         )
         
@@ -290,12 +296,8 @@ def show_main_app():
     # Contenu principal selon la page sélectionnée
     if page == "🏠 Accueil":
         show_home_dashboard()
-    elif page == "📚 Livres MongoDB":
+    elif page == "🍃 MongoDB":
         show_mongo_books()
-    elif page == "💬 Critiques":
-        show_critiques()
-    elif page == "🎯 Analytics":
-        show_analytics()
     elif page == "🗄️ PostgreSQL":
         show_postgres_data()
     elif page == "👤 Mon Profil":
@@ -348,111 +350,320 @@ def show_home_dashboard():
     # Accès rapide
     st.subheader("🚀 Accès rapide")
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📚 Explorer les livres", use_container_width=True):
-            st.session_state.current_page = "📚 Livres MongoDB"
+        if st.button("🍃 MongoDB (Livres, Critiques, Analytics)", use_container_width=True):
+            st.session_state.current_page = "🍃 MongoDB"
             st.rerun()
     
     with col2:
-        if st.button("💬 Voir les critiques", use_container_width=True):
-            st.session_state.current_page = "💬 Critiques"
+        if st.button("🗄️ PostgreSQL (Données & Analytics)", use_container_width=True):
+            st.session_state.current_page = "🗄️ PostgreSQL"
             st.rerun()
     
     with col3:
-        if st.button("🎯 Voir les analytics", use_container_width=True):
-            st.session_state.current_page = "🎯 Analytics"
-            st.rerun()
-    
-    with col4:
-        if st.button("🗄️ Données PostgreSQL", use_container_width=True):
-            st.session_state.current_page = "🗄️ PostgreSQL"
+        if st.button("👤 Mon Profil", use_container_width=True):
+            st.session_state.current_page = "👤 Mon Profil"
             st.rerun()
 
 def show_mongo_books():
-    """Page des livres MongoDB"""
-    st.header("📚 Livres MongoDB")
+    """Page des données MongoDB avec onglets (livres, critiques, analytics)"""
+    st.header("🍃 Données MongoDB")
     
     # Test avec et sans headers pour voir quel endpoint fonctionne
     headers = {"Authorization": f"Bearer {st.session_state.token}"}
     
-    # Test rapide de l'API
-    with st.expander("🔧 Test de l'API"):
-        status_test, response_test = make_api_request("/mongo-livres/livres", params={"limit": 3})
-        if status_test == 200:
-            st.success("✅ API MongoDB accessible")
-            st.write(f"Exemple: {len(response_test.get('data', []))} livres trouvés")
-        else:
-            st.error(f"❌ API non accessible: {response_test}")
+    # Ajouter des onglets pour organiser le contenu
+    tab1, tab2, tab3 = st.tabs(["📚 Livres", "💬 Critiques", "📊 Analytics & Graphiques"])
     
-    # Recherche
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        search_query = st.text_input("🔍 Rechercher un livre", placeholder="Titre, auteur...")
-    with col2:
-        limit = st.selectbox("Nombre de résultats", [10, 20, 50, 100], index=1)
-    
-    if search_query:
+    with tab1:
+        # === PAGE LIVRES ===
+        st.subheader("📚 Livres MongoDB")
+        
+        # Test rapide de l'API
+        with st.expander("🔧 Test de l'API"):
+            status_test, response_test = make_api_request("/mongo-livres/livres", params={"limit": 3})
+            if status_test == 200:
+                st.success("✅ API MongoDB accessible")
+                st.write(f"Exemple: {len(response_test.get('data', []))} livres trouvés")
+            else:
+                st.error(f"❌ API non accessible: {response_test}")
+        
         # Recherche
-        params = {"q": search_query, "limit": limit}
-        status_code, response = make_api_request("/mongo-livres/livres/search", params=params)
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            search_query = st.text_input("🔍 Rechercher un livre", placeholder="Titre, auteur...")
+        with col2:
+            limit = st.selectbox("Nombre de résultats", [10, 20, 50, 100], index=1)
         
-        if status_code == 200:
-            # L'API retourne les données dans response["data"] pour les recherches
-            livres = response.get("data", [])
-            st.success(f"✅ {len(livres)} livres trouvés")
+        if search_query:
+            # Recherche
+            params = {"q": search_query, "limit": limit}
+            status_code, response = make_api_request("/mongo-livres/livres/search", params=params)
             
-            for livre in livres:
-                # Gérer les auteurs (peut être une liste ou une string)
-                auteurs = livre.get('auteurs', ['N/A'])
-                if isinstance(auteurs, list):
-                    auteurs_str = ', '.join(auteurs) if auteurs else 'N/A'
-                else:
-                    auteurs_str = str(auteurs)
+            if status_code == 200:
+                # L'API retourne les données dans response["data"] pour les recherches
+                livres = response.get("data", [])
+                st.success(f"✅ {len(livres)} livres trouvés")
                 
-                # Gérer les genres (peut être une liste)
-                genres = livre.get('tous_les_genres', [])
-                if isinstance(genres, list):
-                    genres_str = ', '.join(genres[:3]) if genres else 'N/A'  # Afficher max 3 genres
-                else:
-                    genres_str = str(genres)
-                
-                with st.expander(f"📖 {livre.get('titre', 'Sans titre')} - {auteurs_str}"):
-                    display_livre_details(livre)
-        else:
-            st.error(f"❌ Erreur de recherche: {response}")
-    else:
-        # Liste générale
-        params = {"limit": limit}
-        status_code, response = make_api_request("/mongo-livres/livres", params=params)
-        
-        if status_code == 200:
-            # L'API retourne les données dans response["data"] pour la liste
-            livres = response.get("data", [])
-            st.info(f"📚 Affichage de {len(livres)} livres")
-            
-            # Affichage des livres en cards
-            if livres:
                 for livre in livres:
-                    # Gérer les auteurs
+                    # Gérer les auteurs (peut être une liste ou une string)
                     auteurs = livre.get('auteurs', ['N/A'])
                     if isinstance(auteurs, list):
                         auteurs_str = ', '.join(auteurs) if auteurs else 'N/A'
                     else:
                         auteurs_str = str(auteurs)
                     
+                    # Gérer les genres (peut être une liste)
+                    genres = livre.get('tous_les_genres', [])
+                    if isinstance(genres, list):
+                        genres_str = ', '.join(genres[:3]) if genres else 'N/A'  # Afficher max 3 genres
+                    else:
+                        genres_str = str(genres)
+                    
                     with st.expander(f"📖 {livre.get('titre', 'Sans titre')} - {auteurs_str}"):
                         display_livre_details(livre)
-                
-                # Option pour afficher en tableau aussi
-                if st.checkbox("🗂️ Afficher en tableau"):
-                    df = pd.DataFrame(livres)
-                    st.dataframe(df, use_container_width=True)
             else:
-                st.warning("Aucun livre trouvé dans la réponse")
+                st.error(f"❌ Erreur de recherche: {response}")
         else:
-            st.error(f"❌ Impossible de charger les livres: {response}")
+            # Liste générale
+            params = {"limit": limit}
+            status_code, response = make_api_request("/mongo-livres/livres", params=params)
+            
+            if status_code == 200:
+                # L'API retourne les données dans response["data"] pour la liste
+                livres = response.get("data", [])
+                st.info(f"📚 Affichage de {len(livres)} livres")
+                
+                # Affichage des livres en cards
+                if livres:
+                    for livre in livres:
+                        # Gérer les auteurs
+                        auteurs = livre.get('auteurs', ['N/A'])
+                        if isinstance(auteurs, list):
+                            auteurs_str = ', '.join(auteurs) if auteurs else 'N/A'
+                        else:
+                            auteurs_str = str(auteurs)
+                        
+                        with st.expander(f"📖 {livre.get('titre', 'Sans titre')} - {auteurs_str}"):
+                            display_livre_details(livre)
+                    
+                    # Option pour afficher en tableau aussi
+                    if st.checkbox("🗂️ Afficher en tableau"):
+                        df = pd.DataFrame(livres)
+                        st.dataframe(df, use_container_width=True)
+                else:
+                    st.warning("Aucun livre trouvé dans la réponse")
+            else:
+                st.error(f"❌ Impossible de charger les livres: {response}")
+    
+    with tab2:
+        # === PAGE CRITIQUES ===
+        st.subheader("💬 Critiques MongoDB")
+        
+        # Test rapide de l'API Critiques
+        with st.expander("🔧 Test de l'API Critiques"):
+            status_test, response_test = make_api_request("/mongo-livres/critiques", params={"limit": 3})
+            if status_test == 200:
+                st.success("✅ API Critiques accessible")
+                critiques = response_test.get('data', [])
+                st.write(f"Exemple: {len(critiques)} critiques trouvées")
+                
+                # Afficher la structure des données pour debug
+                if critiques:
+                    st.write("**📋 Structure des données de critiques:**")
+                    exemple_critique = critiques[0]
+                    st.write("🔍 Champs disponibles:", list(exemple_critique.keys()))
+                    st.json(exemple_critique)
+            else:
+                st.error(f"❌ API non accessible: {response_test}")
+        
+        # Filtres et recherche
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            search_query_critiques = st.text_input("🔍 Rechercher par titre de livre", placeholder="Titre du livre...", key="search_critiques")
+        with col2:
+            min_note = st.selectbox("Note minimale", [0, 1, 2, 3, 4, 5], index=0)
+        with col3:
+            limit_critiques = st.selectbox("Nombre de résultats", [10, 20, 50, 100], index=1, key="limit_critiques")
+        
+        # Onglets pour différentes vues des critiques
+        tab_c1, tab_c2 = st.tabs(["📋 Liste des critiques", "⭐ Mieux notées"])
+        
+        with tab_c1:
+            if search_query_critiques:
+                # Recherche par titre de livre
+                st.subheader(f"🔍 Recherche: '{search_query_critiques}'")
+                params = {"q": search_query_critiques, "limit": limit_critiques}
+                status_code, response = make_api_request("/mongo-livres/critiques/search", params=params)
+                
+                if status_code == 200:
+                    critiques = response.get("data", [])
+                    st.success(f"✅ {len(critiques)} critiques trouvées")
+                    display_critiques_list(critiques)
+                else:
+                    st.error(f"❌ Erreur de recherche: {response}")
+            else:
+                # Liste générale des critiques
+                params = {"limit": limit_critiques}
+                if min_note > 0:
+                    params["min_note"] = min_note
+                
+                status_code, response = make_api_request("/mongo-livres/critiques", params=params)
+                
+                if status_code == 200:
+                    critiques = response.get("data", [])
+                    st.info(f"💬 Affichage de {len(critiques)} critiques")
+                    display_critiques_list(critiques)
+                else:
+                    st.error(f"❌ Impossible de charger les critiques: {response}")
+        
+        with tab_c2:
+            # Critiques les mieux notées
+            st.subheader("⭐ Critiques les mieux notées")
+            status_code, response = make_api_request("/mongo-extras/critiques/top-notes", params={"limit": limit_critiques})
+            
+            if status_code == 200:
+                critiques = response.get("data", [])
+                st.success(f"✅ {len(critiques)} critiques trouvées")
+                display_critiques_detailed(critiques)
+            else:
+                st.error(f"❌ Impossible de charger les meilleures critiques: {response}")
+    
+    with tab3:
+        # === PAGE ANALYTICS ===
+        st.subheader("📊 Analytics MongoDB")
+        st.info("🆕 **Analytics MongoDB** - Graphiques et statistiques des données")
+        
+        # Analytics complets
+        status_code, response = make_api_request("/mongo-extras/analytics")
+        
+        if status_code == 200:
+            analytics = response.get("analytics", {})
+            
+            if not analytics:
+                st.warning("⚠️ Aucune donnée analytics trouvée")
+                st.json(response)
+            else:
+                # Section 1: Statistiques générales des critiques
+                if "stats_critiques_babelio" in analytics:
+                    stats = analytics["stats_critiques_babelio"]
+                    st.subheader("📈 Statistiques Critiques Babelio")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("🔻 Note min", f"{stats.get('min_note', 0):.1f}/5")
+                    with col2:
+                        st.metric("🔺 Note max", f"{stats.get('max_note', 0):.1f}/5")
+                    with col3:
+                        st.metric("📊 Moyenne", f"{stats.get('avg_note', 0):.2f}/5")
+                    with col4:
+                        st.metric("🗳️ Total votes", f"{stats.get('total_votes', 0):,}")
+                
+                # Section 2: Graphiques principaux
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Top genres
+                    if "top_genres" in analytics:
+                        genres_data = analytics["top_genres"]
+                        if genres_data:
+                            df_genres = pd.DataFrame(genres_data)
+                            df_genres.columns = ["Genre", "Nombre"]
+                            fig = px.bar(df_genres.head(10), x="Genre", y="Nombre", 
+                                       title="📊 Top 10 des Genres MongoDB",
+                                       color="Nombre", color_continuous_scale="Blues")
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.warning("Aucune donnée de genres")
+                    else:
+                        st.warning("Clé 'top_genres' manquante dans analytics")
+                
+                with col2:
+                    # Répartition par langue
+                    if "repartition_langues" in analytics:
+                        langues_data = analytics["repartition_langues"]
+                        if langues_data:
+                            df_langues = pd.DataFrame(langues_data)
+                            df_langues.columns = ["Langue", "Nombre"]
+                            fig = px.pie(df_langues.head(8), values="Nombre", names="Langue", 
+                                       title="🌍 Répartition par langue")
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.warning("Aucune donnée de langues")
+                    else:
+                        st.warning("Clé 'repartition_langues' manquante dans analytics")
+                
+                # Section 3: Répartition des notes des livres
+                if "repartition_notes_livres" in analytics:
+                    st.subheader("⭐ Répartition des notes des livres")
+                    notes_data = analytics["repartition_notes_livres"]
+                    if notes_data:
+                        df_notes = pd.DataFrame(notes_data)
+                        df_notes.columns = ["Note", "Nombre"]
+                        fig = px.bar(df_notes, x="Note", y="Nombre", 
+                                   title="Distribution des notes des livres",
+                                   color="Nombre", color_continuous_scale="Oranges")
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Section 4: Livres récents
+                if "livres_recents" in analytics:
+                    st.subheader("📅 Livres récemment ajoutés")
+                    livres_recents = analytics["livres_recents"]
+                    if livres_recents:
+                        for livre in livres_recents[:3]:
+                            with st.expander(f"📖 {livre.get('titre', 'Sans titre')}"):
+                                col1, col2 = st.columns([2, 1])
+                                with col1:
+                                    st.write(f"**Auteur(s):** {', '.join(livre.get('auteurs', ['N/A']))}")
+                                    if livre.get('resume'):
+                                        resume = livre.get('resume', '')[:200] + "..." if len(livre.get('resume', '')) > 200 else livre.get('resume', '')
+                                        st.write(f"**Résumé:** {resume}")
+                                with col2:
+                                    st.write(f"**Note:** {livre.get('note', 'N/A')}/5")
+                                    st.write(f"**Langue:** {livre.get('langue', 'N/A')}")
+                                    if livre.get('tous_les_genres'):
+                                        st.write(f"**Genres:** {', '.join(livre.get('tous_les_genres', [])[:3])}")
+                
+                # Section 5: Analytics supplémentaires
+                st.divider()
+                st.subheader("🔍 Analytics supplémentaires")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Top auteurs via endpoint séparé
+                    status_auteurs, response_auteurs = make_api_request("/mongo-extras/auteurs")
+                    if status_auteurs == 200 and response_auteurs.get("success"):
+                        auteurs_data = response_auteurs.get("data", [])[:10]
+                        if auteurs_data:
+                            df_auteurs = pd.DataFrame(auteurs_data)
+                            df_auteurs.columns = ["Auteur", "Nombre"]
+                            fig = px.bar(df_auteurs, x="Auteur", y="Nombre", 
+                                       title="✍️ Top 10 des Auteurs MongoDB",
+                                       color="Nombre", color_continuous_scale="Greens")
+                            fig.update_layout(xaxis_tickangle=45)
+                            st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    # Métriques générales
+                    status_summary, summary_data = make_api_request("/summary")
+                    if status_summary == 200:
+                        data = summary_data.get("data", {})
+                        st.metric("📚 Total Livres", data.get("livres_mongodb", 0))
+                        st.metric("💬 Total Critiques", data.get("critiques_babelio", 0))
+                        st.metric("🔗 Version API", data.get("version_api", "N/A"))
+                    
+                    # Statistiques des critiques
+                    show_critiques_stats()
+                
+                # Bouton pour actualiser les analytics
+                if st.button("🔄 Actualiser les analytics MongoDB"):
+                    st.rerun()
+                
+        else:
+            st.error(f"❌ Impossible de charger les analytics: {response}")
 
 def display_livre_details(livre):
     """Afficher les détails complets d'un livre avec ses critiques"""
@@ -483,7 +694,7 @@ def display_livre_details(livre):
         # Résumé
         if livre.get('resume'):
             st.write("**📝 Résumé:**")
-            resume = livre['resume']
+            resume = livre.get('resume', '')
             if len(resume) > 300:
                 # Afficher un aperçu avec option pour voir plus
                 st.write(resume[:300] + "...")
@@ -498,9 +709,17 @@ def display_livre_details(livre):
         st.metric("⭐ Note", f"{livre.get('note', 'N/A')}/5")
         st.metric("🌍 Langue", livre.get('langue', 'N/A'))
         
-        # ISBN si disponible
+        # ISBN si disponible (adaptation pour nouvelle structure)
+        isbn_display = None
         if livre.get('isbn'):
-            st.write(f"**📚 ISBN:** {livre.get('isbn')}")
+            isbn_display = livre.get('isbn')
+        elif livre.get('isbn_13'):
+            isbn_display = livre.get('isbn_13')
+        elif livre.get('isbn_10'):
+            isbn_display = livre.get('isbn_10')
+        
+        if isbn_display:
+            st.write(f"**📚 ISBN:** {isbn_display}")
         
         # Autres infos
         if livre.get('editeur'):
@@ -509,9 +728,18 @@ def display_livre_details(livre):
             st.write(f"**📅 Publication:** {livre.get('date_publication')}")
     
     with col3:
-        # Informations techniques
-        if livre.get('nombre_pages'):
-            st.metric("📄 Pages", livre.get('nombre_pages'))
+        # Informations techniques (adaptation pour nouvelle structure)
+        pages_count = livre.get('nombre_pages') or livre.get('nb_pages')
+        if pages_count:
+            st.metric("📄 Pages", pages_count)
+        
+        # Affichage des votes si disponible (nouveau champ)
+        if livre.get('nombre_votes'):
+            st.metric("🗳️ Votes", livre.get('nombre_votes'))
+        
+        # Source API si disponible (nouveau champ)
+        if livre.get('source_api'):
+            st.write(f"**🔗 Source:** {livre.get('source_api').replace('_', ' ').title()}")
         
         # URL Babelio si disponible
         if livre.get('url_babelio'):
@@ -570,7 +798,7 @@ def display_critique_inline(critique):
         # Texte de la critique
         if critique.get('critique_babelio'):
             st.write("**💬 Critique:**")
-            critique_text = critique['critique_babelio']
+            critique_text = critique.get('critique_babelio', '')  # 🔧 FIX: utiliser .get()
             if len(critique_text) > 500:
                 with st.expander("Lire la critique complète"):
                     st.write(critique_text)
@@ -598,107 +826,7 @@ def display_critique_inline(critique):
         if critique.get('url_babelio'):
             st.markdown(f"🔗 [Voir sur Babelio]({critique.get('url_babelio')})")
 
-def show_critiques():
-    """Page des critiques de livres"""
-    st.header("💬 Critiques de Livres")
-    
-    # Test avec et sans headers pour voir quel endpoint fonctionne
-    headers = {"Authorization": f"Bearer {st.session_state.token}"}
-    
-    # Test rapide de l'API
-    with st.expander("🔧 Test de l'API Critiques"):
-        status_test, response_test = make_api_request("/mongo-livres/critiques", params={"limit": 3})
-        if status_test == 200:
-            st.success("✅ API Critiques accessible")
-            critiques = response_test.get('data', [])
-            st.write(f"Exemple: {len(critiques)} critiques trouvées")
-            
-            # Afficher la structure des données pour debug
-            if critiques:
-                st.write("**📋 Structure des données de critiques:**")
-                exemple_critique = critiques[0]
-                st.write("🔍 Champs disponibles:", list(exemple_critique.keys()))
-                st.json(exemple_critique)
-        else:
-            st.error(f"❌ API non accessible: {response_test}")
-    
-    # Filtres et recherche
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        search_query = st.text_input("🔍 Rechercher par titre de livre", placeholder="Titre du livre...")
-    with col2:
-        min_note = st.selectbox("Note minimale", [0, 1, 2, 3, 4, 5], index=0)
-    with col3:
-        limit = st.selectbox("Nombre de résultats", [10, 20, 50, 100], index=1)
-    
-    # Onglets pour différentes vues
-    tab1, tab2, tab3 = st.tabs(["📋 Liste des critiques", "⭐ Mieux notées", "📊 Statistiques"])
-    
-    with tab1:
-        if search_query:
-            # Recherche par titre de livre
-            st.subheader(f"🔍 Recherche: '{search_query}'")
-            params = {"q": search_query, "limit": limit}
-            status_code, response = make_api_request("/mongo-livres/critiques/search", params=params)
-            
-            if status_code == 200:
-                critiques = response.get("data", [])
-                st.success(f"✅ {len(critiques)} critiques trouvées")
-                display_critiques_list(critiques)
-            else:
-                st.error(f"❌ Erreur de recherche: {response}")
-        else:
-            # Liste générale des critiques
-            params = {"limit": limit}
-            if min_note > 0:
-                params["min_note"] = min_note
-            
-            status_code, response = make_api_request("/mongo-livres/critiques", params=params)
-            
-            if status_code == 200:
-                critiques = response.get("data", [])
-                st.info(f"💬 Affichage de {len(critiques)} critiques")
-                display_critiques_list(critiques)
-            else:
-                st.error(f"❌ Impossible de charger les critiques: {response}")
-    
-    with tab2:
-        # Critiques les mieux notées
-        st.subheader("⭐ Critiques les mieux notées")
-        status_code, response = make_api_request("/mongo-extras/critiques/top-notes", params={"limit": limit})
-        
-        if status_code == 200:
-            critiques = response.get("data", [])
-            st.success(f"✅ {len(critiques)} critiques trouvées")
-            display_critiques_detailed(critiques)
-        else:
-            st.error(f"❌ Impossible de charger les meilleures critiques: {response}")
-    
-    with tab3:
-        # Statistiques des critiques
-        st.subheader("📊 Statistiques des critiques")
-        show_critiques_stats()
-        
-        # Aide pour comprendre la structure des données
-        st.divider()
-        st.subheader("🔍 Structure des données")
-        if st.button("Analyser la structure des critiques"):
-            status_sample, sample_response = make_api_request("/mongo-livres/sample")
-            if status_sample == 200:
-                echantillons = sample_response.get("echantillons", {})
-                critiques_data = echantillons.get("critiques", {})
-                
-                if critiques_data:
-                    st.write("**📋 Champs disponibles dans les critiques:**")
-                    champs = critiques_data.get("champs_disponibles", [])
-                    st.write(champs)
-                    
-                    sample_critiques = critiques_data.get("sample", [])
-                    if sample_critiques:
-                        st.write("**📄 Exemple de critique:**")
-                        st.json(sample_critiques[0])
-            else:
-                st.error("Impossible de récupérer l'échantillon")
+
 
 def display_critiques_list(critiques):
     """Afficher une liste de critiques en format compact"""
@@ -860,127 +988,7 @@ def show_critiques_stats():
     else:
         st.error("❌ Impossible de récupérer les statistiques")
 
-def show_analytics():
-    """Page analytics"""
-    st.header("🎯 Analytics")
-    
-    headers = {"Authorization": f"Bearer {st.session_state.token}"}
-    
-    # Analytics complets
-    status_code, response = make_api_request("/mongo-extras/analytics")
-    
-    if status_code == 200:
-        analytics = response.get("analytics", {})
-        
-        if not analytics:
-            st.warning("⚠️ Aucune donnée analytics trouvée")
-            st.json(response)
-            return
-        
-        # Graphiques
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Top genres (utiliser la vraie structure)
-            if "top_genres" in analytics:
-                genres_data = analytics["top_genres"]
-                if genres_data:
-                    df_genres = pd.DataFrame(genres_data)
-                    df_genres.columns = ["Genre", "Nombre"]
-                    fig = px.bar(df_genres.head(10), x="Genre", y="Nombre", title="📊 Top 10 des Genres")
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.warning("Aucune donnée de genres")
-            else:
-                st.warning("Clé 'top_genres' manquante dans analytics")
-        
-        with col2:
-            # Répartition par langue (à la place des auteurs temporairement)
-            if "repartition_langues" in analytics:
-                langues_data = analytics["repartition_langues"]
-                if langues_data:
-                    df_langues = pd.DataFrame(langues_data)
-                    df_langues.columns = ["Langue", "Nombre"]
-                    fig = px.pie(df_langues.head(8), values="Nombre", names="Langue", title="🌍 Répartition par langue")
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.warning("Aucune donnée de langues")
-            else:
-                st.warning("Clé 'repartition_langues' manquante dans analytics")
-        
-        # Statistiques générales
-        if "stats_critiques_babelio" in analytics:
-            stats = analytics["stats_critiques_babelio"]
-            st.subheader("📈 Statistiques Critiques Babelio")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("🔻 Note min", f"{stats.get('min_note', 0):.1f}/5")
-            with col2:
-                st.metric("🔺 Note max", f"{stats.get('max_note', 0):.1f}/5")
-            with col3:
-                st.metric("📊 Moyenne", f"{stats.get('avg_note', 0):.2f}/5")
-            with col4:
-                st.metric("🗳️ Total votes", f"{stats.get('total_votes', 0):,}")
-        
-        # Répartition des notes des livres
-        if "repartition_notes_livres" in analytics:
-            st.subheader("⭐ Répartition des notes des livres")
-            notes_data = analytics["repartition_notes_livres"]
-            if notes_data:
-                df_notes = pd.DataFrame(notes_data)
-                df_notes.columns = ["Note", "Nombre"]
-                fig = px.bar(df_notes, x="Note", y="Nombre", title="Distribution des notes")
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # Livres récents
-        if "livres_recents" in analytics:
-            st.subheader("📅 Livres récemment ajoutés")
-            livres_recents = analytics["livres_recents"]
-            if livres_recents:
-                for livre in livres_recents[:3]:
-                    with st.expander(f"📖 {livre.get('titre', 'Sans titre')}"):
-                        col1, col2 = st.columns([2, 1])
-                        with col1:
-                            st.write(f"**Auteur(s):** {', '.join(livre.get('auteurs', ['N/A']))}")
-                            if livre.get('resume'):
-                                resume = livre['resume'][:200] + "..." if len(livre.get('resume', '')) > 200 else livre['resume']
-                                st.write(f"**Résumé:** {resume}")
-                        with col2:
-                            st.write(f"**Note:** {livre.get('note', 'N/A')}/5")
-                            st.write(f"**Langue:** {livre.get('langue', 'N/A')}")
-                            if livre.get('tous_les_genres'):
-                                st.write(f"**Genres:** {', '.join(livre['tous_les_genres'][:3])}")
-        
-        # Ajout d'analytics supplémentaires via d'autres endpoints
-        st.divider()
-        st.subheader("🔍 Analytics supplémentaires")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Top auteurs via endpoint séparé
-            status_auteurs, response_auteurs = make_api_request("/mongo-extras/auteurs")
-            if status_auteurs == 200 and response_auteurs.get("success"):
-                auteurs_data = response_auteurs.get("data", [])[:10]
-                if auteurs_data:
-                    df_auteurs = pd.DataFrame(auteurs_data)
-                    df_auteurs.columns = ["Auteur", "Nombre"]
-                    fig = px.bar(df_auteurs, x="Auteur", y="Nombre", title="✍️ Top 10 des Auteurs")
-                    fig.update_layout(xaxis_tickangle=45)
-                    st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            # Métriques générales
-            status_summary, summary_data = make_api_request("/summary")
-            if status_summary == 200:
-                data = summary_data.get("data", {})
-                st.metric("📚 Total Livres", data.get("livres_mongodb", 0))
-                st.metric("💬 Total Critiques", data.get("critiques_babelio", 0))
-                st.metric("🔗 Version API", data.get("version_api", "N/A"))
-        
-    else:
-        st.error(f"❌ Impossible de charger les analytics: {response}")
+
 
 def show_postgres_data():
     """Page données PostgreSQL"""

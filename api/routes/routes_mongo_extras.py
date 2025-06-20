@@ -53,21 +53,7 @@ def serialize_mongo_doc(doc):
     
     return doc_copy
 
-@mongo_extras_router.get("/")
-async def accueil_extras():
-    """🎯 Fonctionnalités avancées MongoDB"""
-    return {
-        "message": "🎯 Fonctionnalités avancées MongoDB",
-        "endpoints": {
-            "genres": "GET /mongo-extras/genres - Tous les genres",
-            "auteurs": "GET /mongo-extras/auteurs - Tous les auteurs", 
-            "top_livres": "GET /mongo-extras/livres/top-notes - Livres mieux notés",
-            "top_critiques": "GET /mongo-extras/critiques/top-notes - Critiques mieux notées",
-            "par_genre": "GET /mongo-extras/livres/genre/{genre} - Livres par genre",
-            "par_auteur": "GET /mongo-extras/livres/auteur/{auteur} - Livres par auteur",
-            "analytics": "GET /mongo-extras/analytics - Analytics avancés"
-        }
-    }
+# ❌ Page d'accueil supprimée - info incluse dans GET / principal
 
 @mongo_extras_router.get("/genres")
 async def lister_genres():

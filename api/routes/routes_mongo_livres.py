@@ -57,46 +57,7 @@ def serialize_mongo_doc(doc):
     
     return doc_copy
 
-@mongo_livres_router.get("/")
-async def accueil_mongo_livres():
-    """Page d'accueil pour les données MongoDB de livres"""
-    try:
-        await check_mongodb()
-        
-        # Compter les documents dans chaque collection
-        nb_livres = await mongodb_service.database.livres.count_documents({})
-        nb_critiques = await mongodb_service.database.critiques_livres.count_documents({})
-        
-        return {
-            "message": "🍃 API MongoDB - Livres et Critiques",
-            "timestamp": datetime.now(),
-            "collections": {
-                "livres": {
-                    "count": nb_livres,
-                    "endpoints": [
-                        "GET /mongo-livres/livres - Lister tous les livres",
-                        "GET /mongo-livres/livres/{id} - Détail d'un livre",
-                        "GET /mongo-livres/livres/search?q={terme} - Rechercher des livres"
-                    ]
-                },
-                "critiques_livres": {
-                    "count": nb_critiques,
-                    "endpoints": [
-                        "GET /mongo-livres/critiques - Lister toutes les critiques",
-                        "GET /mongo-livres/critiques/{id} - Détail d'une critique",
-                        "GET /mongo-livres/critiques/livre/{livre_id} - Critiques d'un livre"
-                    ]
-                }
-            },
-            "status": "✅ MongoDB connecté"
-        }
-    except Exception as e:
-        return {
-            "message": "❌ Erreur MongoDB",
-            "error": str(e),
-            "status": "🔴 MongoDB non disponible",
-            "collections": {}
-        }
+# ❌ Page d'accueil supprimée - info incluse dans GET / principal
 
 # === ROUTES LIVRES ===
 

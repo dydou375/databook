@@ -50,7 +50,7 @@ def start_streamlit():
     print("📚 Interface DataBook avec:")
     print("   • 🔐 Authentification JWT")
     print("   • 📝 Inscription/Connexion")
-    print("   • 📚 4766 livres MongoDB")
+    print("   • 📚 41000 livres MongoDB")
     print("   • 🎯 Analytics avancés")
     print("   • 🗄️ Données PostgreSQL")
     print()

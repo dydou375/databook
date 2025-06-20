@@ -11,21 +11,19 @@ from database.crud import user_crud, item_crud
 from auth.auth import require_jwt, optional_jwt
 from config.config import settings
 
-# Import des nouveaux routers
-from routes.routes_postgres import postgres_router
-from routes.routes_postgres_livres import postgres_livres_router  # Nouveau : routes pour les vraies données PostgreSQL
-from routes.routes_postgres_extras import postgres_extras_router  # Nouveau : analytics PostgreSQL
-from routes.routes_mongo import mongo_router
-from routes.routes_real_data import real_data_router
-from routes.routes_real_mongo import real_mongo_router
-from routes.routes_mongo_livres import mongo_livres_router
-from routes.routes_mongo_extras import mongo_extras_router
-from routes.auth_routes import auth_router  # Nouveau : routes d'authentification
-try:
-    from routes.routes_livres import livres_router
-    LIVRES_ROUTER_AVAILABLE = True
-except ImportError:
-    LIVRES_ROUTER_AVAILABLE = False
+# 🚀 Import des routers optimisés
+from routes.routes_postgres_livres import postgres_livres_router  # PostgreSQL - Livres réels
+from routes.routes_postgres_extras import postgres_extras_router  # PostgreSQL - Analytics
+from routes.routes_mongo_livres import mongo_livres_router  # MongoDB - Livres & Critiques
+from routes.routes_mongo_extras import mongo_extras_router  # MongoDB - Analytics
+from routes.auth_routes import auth_router  # Authentification JWT
+
+# ❌ Imports supprimés pour simplification :
+# - routes_postgres (legacy)
+# - routes_mongo (redondant)
+# - routes_real_data (fusionné)
+# - routes_real_mongo (fusionné)
+# - routes_livres (optionnel)
 
 try:
     from database.mongo_crud import mongodb_service
@@ -97,20 +95,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclusion des routers
-app.include_router(postgres_router)
-app.include_router(postgres_livres_router)  # Routes pour les vraies données PostgreSQL (schéma test)
-app.include_router(postgres_extras_router)  # Routes analytics PostgreSQL
-app.include_router(mongo_router)
-app.include_router(real_data_router)  # Nouvelles routes pour les vraies données
-app.include_router(real_mongo_router)  # Routes MongoDB pour les vraies collections
-app.include_router(mongo_livres_router)  # Routes spécifiques pour livres et critiques MongoDB
-app.include_router(mongo_extras_router)  # Routes avancées MongoDB
-app.include_router(auth_router)  # Inclure le nouveau router pour les routes d'authentification
+# 🚀 Inclusion des routers optimisés
+app.include_router(auth_router)  # Authentification JWT
+app.include_router(postgres_livres_router)  # PostgreSQL - Livres réels
+app.include_router(postgres_extras_router)  # PostgreSQL - Analytics
+app.include_router(mongo_livres_router)  # MongoDB - Livres & Critiques
+app.include_router(mongo_extras_router)  # MongoDB - Analytics
 
-# Inclure le nouveau router pour les livres si disponible
-if LIVRES_ROUTER_AVAILABLE:
-    app.include_router(livres_router)
+# ❌ Routers supprimés pour simplification :
+# - postgres_router (legacy users - remplacé par auth_router)
+# - mongo_router (redondant avec mongo_livres_router) 
+# - real_data_router (fusionné avec autres routers)
+# - real_mongo_router (fusionné avec mongo_livres_router)
+# - livres_router (optionnel - généralement pas utilisé)
 
 # Route de base (publique)
 @app.get("/")
@@ -122,34 +119,30 @@ async def root():
         "timestamp": datetime.now(),
         "docs": "/docs",
         "databases": {
-            "postgresql": "/postgres/* (legacy users + stats)",
-            "postgresql_livres": "/postgres/livres/* (📚 vraies données schéma test)",
-            "postgresql_analytics": "/postgres-extras/* (📊 graphiques PostgreSQL)",
-            "mongodb": "/mongo/*",
-            "mongodb_real": "/mongodb/* (vos vraies données)",
-            "mongo_livres": "/mongo-livres/* (📚 livres et 💬 critiques)",
-            "mongo_extras": "/mongo-extras/* (🎯 analytics avancés)",
-            "livres": "/livres/*" if LIVRES_ROUTER_AVAILABLE else "❌ Non disponible"
+            "postgresql_livres": "/postgres/livres/* (📚 livres schéma test)",
+            "postgresql_analytics": "/postgres-extras/* (📊 analytics PostgreSQL)",
+            "mongo_livres": "/mongo-livres/* (📚 4766 livres et 💬 85 critiques)",
+            "mongo_extras": "/mongo-extras/* (🎯 analytics MongoDB avancés)"
         },
         "authentication": {
             "jwt": {
                 "login": "/auth/login",
-                "token": "/auth/token", 
                 "register": "/auth/register",
                 "me": "/auth/me",
-                "refresh": "/auth/refresh"
+                "refresh": "/auth/refresh",
+                "logout": "/auth/logout"
             },
-            "info": "🔐 Authentification JWT moderne - Clé API supprimée",
-            "migration_status": "✅ Migration complète vers JWT terminée"
+            "info": "🔐 Authentification JWT sécurisée",
+            "note": "❌ /auth/token supprimé - utilisez /auth/login"
         },
         "features": [
-            "📚 Gestion des vraies données de livres (PostgreSQL schéma test)",
-            "🔍 Recherche avancée avec jointures complètes", 
-            "📊 Analytics temps réel MongoDB ET PostgreSQL",
-            "📈 Graphiques et visualisations pour les deux BDD",
-            "🔐 Authentification JWT moderne (plus de clé API)",
-            "🛡️ API sécurisée et nettoyée",
-            "🗂️ Structure de base optimisée (auteur, editeur, langue, sujet)"
+            "📚 4766 livres MongoDB + Base PostgreSQL",
+            "🔍 Recherche avancée et filtres multiples", 
+            "📊 Analytics temps réel (2 bases de données)",
+            "📈 Graphiques interactifs Plotly",
+            "🔐 Authentification JWT sécurisée",
+            "🚀 API optimisée - 40 endpoints essentiels",
+            "📱 Interface Streamlit moderne"
         ]
     }
 
@@ -185,27 +178,39 @@ async def health_check():
     
     return status
 
-# Routes legacy (maintien de la compatibilité)
-@app.post("/users/", response_model=User, tags=["Legacy"])
-async def create_user(user: UserCreate, db=Depends(get_db), current_user = Depends(require_jwt)):
-    """Créer un nouvel utilisateur (legacy - utilisez /postgres/users/)"""
-    return user_crud.create_user(db, user)
+# Route de résumé rapide (publique)
+@app.get("/summary")
+async def summary():
+    """📊 Résumé rapide des données disponibles"""
+    try:
+        # Compter MongoDB si disponible
+        mongo_data = {}
+        if MONGODB_AVAILABLE and mongodb_service:
+            try:
+                mongo_data["livres_mongodb"] = await mongodb_service.database.livres.count_documents({})
+                mongo_data["critiques_babelio"] = await mongodb_service.database.critiques_livres.count_documents({})
+            except:
+                mongo_data["livres_mongodb"] = "N/A"
+                mongo_data["critiques_babelio"] = "N/A"
+        
+        return {
+            "success": True,
+            "data": {
+                "version_api": "3.0.0",
+                "livres_mongodb": mongo_data.get("livres_mongodb", "N/A"),
+                "critiques_babelio": mongo_data.get("critiques_babelio", "N/A"),
+                "endpoints_total": "~40 endpoints optimisés",
+                "authentification": "JWT",
+                "bases_donnees": ["PostgreSQL", "MongoDB"]
+            },
+            "timestamp": datetime.now()
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
-@app.get("/users/", response_model=List[User], tags=["Legacy"])
-async def get_users(skip: int = 0, limit: int = 100, db=Depends(get_db), current_user = Depends(require_jwt)):
-    """Récupérer la liste des utilisateurs (legacy - utilisez /postgres/users/)"""
-    return user_crud.get_users(db, skip=skip, limit=limit)
-
-@app.get("/users/{user_id}", response_model=User, tags=["Legacy"])
-async def get_user(user_id: int, db=Depends(get_db), current_user = Depends(require_jwt)):
-    """Récupérer un utilisateur par son ID (legacy - utilisez /postgres/users/{user_id})"""
-    user = user_crud.get_user(db, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    return user
-
-# Note: Les routes legacy /books/ ont été supprimées car nous n'utilisons plus
-# la table 'books'. Utilisez /postgres/livres/ pour accéder aux vraies données.
+# ❌ Routes legacy supprimées pour simplification
+# Anciens endpoints /users/ remplacés par l'authentification JWT (/auth/*)
+# Utilisez les nouveaux endpoints dans les routers spécialisés
 
 # Route de recherche globale
 @app.get("/search/", tags=["Search"])
@@ -254,28 +259,7 @@ async def get_global_statistics(db=Depends(get_db), current_user = Depends(requi
         "recommendation": "Utilisez /postgres/livres/stats/general pour les vraies statistiques des livres"
     }
 
-# Route pour tester la connexion aux bases de données
-@app.get("/db-status/", tags=["System"])
-async def database_status(db=Depends(get_db), current_user = Depends(require_jwt)):
-    """Vérifier le statut des bases de données"""
-    status = {"timestamp": datetime.now()}
-    
-    # Test PostgreSQL
-    try:
-        from sqlalchemy import text
-        db.execute(text("SELECT 1"))
-        status["postgresql"] = "connected"
-    except Exception as e:
-        status["postgresql"] = f"error: {str(e)}"
-    
-    # Test MongoDB
-    try:
-        await mongodb_service.database.list_collection_names()
-        status["mongodb"] = "connected"
-    except Exception as e:
-        status["mongodb"] = f"error: {str(e)}"
-    
-    return status
+# ❌ Route /db-status/ supprimée - utilisez /health (même fonctionnalité, public)
 
 if __name__ == "__main__":
     uvicorn.run(

@@ -51,43 +51,7 @@ async def get_livres_statistics(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors du calcul des statistiques: {str(e)}")
 
-@postgres_livres_router.get("/livres/debug/tables")
-async def debug_tables(
-    db: Session = Depends(get_db)
-):
-    """Debug: Lister les tables disponibles dans le schéma test"""
-    
-    try:
-        # Lister les tables du schéma test
-        tables_query = text("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'test'
-            ORDER BY table_name
-        """)
-        
-        result = db.execute(tables_query)
-        tables = [row.table_name for row in result.fetchall()]
-        
-        # Compter les enregistrements dans chaque table
-        table_counts = {}
-        for table in tables:
-            try:
-                count_query = text(f"SELECT COUNT(*) as count FROM {table}")
-                count_result = db.execute(count_query)
-                table_counts[table] = count_result.fetchone().count
-            except Exception as e:
-                table_counts[table] = f"Erreur: {str(e)}"
-        
-        return {
-            "schema": "test",
-            "tables": tables,
-            "table_counts": table_counts,
-            "timestamp": datetime.now()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur debug: {str(e)}")
+# ❌ Endpoint debug supprimé pour simplification
 
 @postgres_livres_router.get("/livres/{livre_id}", response_model=LivreComplet)
 async def get_livre_by_id(
@@ -262,46 +226,7 @@ async def get_livres_postgres(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors de la récupération des livres: {str(e)}")
 
-@postgres_livres_router.get("/livres/test/simple")
-async def test_simple_query(db: Session = Depends(get_db)):
-    """Test simple pour debugger la connexion"""
-    try:
-        # Test ultra simple
-        result = db.execute(text("SELECT COUNT(*) as count FROM livre LIMIT 1"))
-        row = result.fetchone()
-        return {"count": row.count, "status": "success"}
-    except Exception as e:
-        return {"error": str(e), "status": "error"}
-
-@postgres_livres_router.get("/livres/test/columns")
-async def test_columns(db: Session = Depends(get_db)):
-    """Test des colonnes de la table livre"""
-    try:
-        # Vérifier les colonnes disponibles
-        result = db.execute(text("""
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = 'livre' 
-            AND table_schema = 'test'
-            ORDER BY ordinal_position
-        """))
-        columns = [{"name": row.column_name, "type": row.data_type} for row in result.fetchall()]
-        
-        return {"columns": columns, "status": "success"}
-    except Exception as e:
-        return {"error": str(e), "status": "error"}
-
-@postgres_livres_router.get("/livres/test/sample")
-async def test_sample_data(db: Session = Depends(get_db)):
-    """Test récupération d'un échantillon"""
-    try:
-        # Récupérer juste les colonnes de base
-        result = db.execute(text("SELECT id_livre, titre FROM livre LIMIT 1"))
-        row = result.fetchone()
-        
-        if row:
-            return {"id_livre": row.id_livre, "titre": row.titre, "status": "success"}
-        else:
-            return {"message": "Aucun livre trouvé", "status": "warning"}
-    except Exception as e:
-        return {"error": str(e), "status": "error"} 
+# ❌ Endpoints de test supprimés pour simplification
+# - /livres/test/simple
+# - /livres/test/columns  
+# - /livres/test/sample 
