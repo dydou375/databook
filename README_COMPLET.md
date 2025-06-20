@@ -30,6 +30,8 @@ Sources Externes → API DataBook → Bases de Données → Interfaces Utilisate
 
 ### 🗄️ Modèle de Données Principal
 
+## MCD (Mermaid)
+
 ```mermaid
 erDiagram
     LIVRE {
@@ -40,27 +42,90 @@ erDiagram
         string description
         int nombre_pages
         string url_couverture
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
         float note_moyenne
         int nombre_avis
+        string statut_acquisition
+        string date_ajout
+        string date_modification
     }
     AUTEUR {
         int id_auteur PK
         string nom
+        string url_openlibrary
+        string url_googlebooks
         string url_babelio
+        string url_goodreads
+        string date_ajout
+        string date_modification
     }
-    USERS_JWT {
-        int id PK
-        string email UK
-        string first_name
-        string last_name
-        string hashed_password
-        boolean is_active
-        datetime created_at
+    EDITEUR {
+        int id_editeur PK
+        string nom
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
+        string date_ajout
+        string date_modification
     }
-    
-    LIVRE ||--o{ LIVRE_AUTEUR : "écrit par"
-    AUTEUR ||--o{ LIVRE_AUTEUR : "auteur de"
-    USERS_JWT ||--o{ LIVRE : "possède"
+    LANGUE {
+        int id_langue PK
+        string code
+        string nom
+        string date_ajout
+        string date_modification
+    }
+    SUJET {
+        int id_sujet PK
+        string nom
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_AUTEUR {
+        int id_livre PK,FK
+        int id_auteur PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_EDITEUR {
+        int id_livre PK,FK
+        int id_editeur PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_LANGUE {
+        int id_livre PK,FK
+        int id_langue PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_SUJET {
+        int id_livre PK,FK
+        int id_sujet PK,FK
+        string date_ajout
+        string date_modification
+    }
+    EXTRACTION_LOG {
+        int id_log PK
+        string nom_fichier
+        int nombre_lignes
+        string date_extraction
+        string statut
+        string message
+    }
+
+    LIVRE ||--o{ LIVRE_AUTEUR : "a"
+    AUTEUR ||--o{ LIVRE_AUTEUR : "écrit"
+    LIVRE ||--o{ LIVRE_EDITEUR : "publié par"
+    EDITEUR ||--o{ LIVRE_EDITEUR : "publie"
+    LIVRE ||--o{ LIVRE_LANGUE : "disponible en"
+    LANGUE ||--o{ LIVRE_LANGUE : "utilisée dans"
+    LIVRE ||--o{ LIVRE_SUJET : "traite de"
+    SUJET ||--o{ LIVRE_SUJET : "apparaît dans"
 ```
 
 ## 🚀 État Actuel - Fonctionnalités Opérationnelles
