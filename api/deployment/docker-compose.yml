@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: databook_postgres
+    environment:
+      POSTGRES_DB: databook
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - databook_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d databook"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Base de données MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: databook_mongodb
+    environment:
+      MONGO_INITDB_DATABASE: databook
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - databook_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Interface d'administration MongoDB (optionnel)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: databook_mongo_express
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - databook_network
+
+  # Interface d'administration PostgreSQL (optionnel)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: databook_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@databook.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "8082:80"
+    depends_on:
+      - postgres
+    networks:
+      - databook_network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # API DataBook (optionnel - pour la conteneurisation complète)
+  # api:
+  #   build: .
+  #   container_name: databook_api
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #     POSTGRES_PORT: 5432
+  #     POSTGRES_DB: databook
+  #     POSTGRES_USER: user
+  #     POSTGRES_PASSWORD: password
+  #     MONGODB_HOST: mongodb
+  #     MONGODB_PORT: 27017
+  #     MONGODB_DATABASE: databook
+  #     API_KEY: your-secure-api-key
+  #     SECRET_KEY: your-super-secret-key
+  #     DEBUG: "false"
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     mongodb:
+  #       condition: service_healthy
+  #   networks:
+  #     - databook_network
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  databook_network:
+    driver: bridge 

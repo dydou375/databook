@@ -24,7 +24,7 @@ class ImportateurMongoDB:
                 uri_mongodb: str = "mongodb://localhost:27017/",
                 nom_base: str = "databook",
                 nom_collection: str = "livres",
-                dossier_json: str = r"C:\Users\dd758\Formation_IA_Greta\Projet_possible certif\Livre_analyse\data_book\databook\data\livre_json\livres_json_redistribues"):
+                dossier_json: str = r"C:\Users\dd758\Formation_IA_Greta\Projet_possible certif\Livre_analyse\data_book\databook\data\livre_json\livres_json_ameliore"):
         """
         Initialise l'importateur MongoDB
         
@@ -339,9 +339,9 @@ def main():
     if not nom_collection:
         nom_collection = "livres"
     
-    dossier_json = input("Dossier des fichiers JSON [C:\\Users\\dd758\\Formation_IA_Greta\\Projet_possible certif\\Livre_analyse\\data_book\\databook\\data\\livre_json\\livres_json_redistribues]: ").strip()
+    dossier_json = input("Dossier des fichiers JSON [C:\\Users\\dd758\\Formation_IA_Greta\\Projet_possible certif\\Livre_analyse\\data_book\\databook\\data\\livre_json\\livres_json_ameliore]: ").strip()
     if not dossier_json:
-        dossier_json = r"C:\Users\dd758\Formation_IA_Greta\Projet_possible certif\Livre_analyse\data_book\databook\data\livre_json\livres_json_redistribues"
+        dossier_json = r"C:\Users\dd758\Formation_IA_Greta\Projet_possible certif\Livre_analyse\data_book\databook\data\livre_json\livres_json_ameliore"
     
     # Créer l'importateur
     importateur = ImportateurMongoDB(uri_mongodb, nom_base, nom_collection, dossier_json)

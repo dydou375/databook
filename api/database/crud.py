@@ -4,8 +4,8 @@ from passlib.context import CryptContext
 from typing import List, Optional
 from datetime import datetime
 
-from database import UserDB, ItemDB
-from models import UserCreate, UserUpdate, ItemCreate, ItemUpdate
+from .database import UserDB, ItemDB
+from models.models import UserCreate, UserUpdate, ItemCreate, ItemUpdate
 
 # Configuration pour le hachage des mots de passe
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
