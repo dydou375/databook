@@ -29,8 +29,8 @@ __pycache__/
 # Ignorer les fichiers de test
 tests/
 
-# Ignorer les fichiers de documentation générés
-docs/
+#ignrorer les docs d'api
+api/docs/
 
 # Ignorer les fichiers de données
 data/

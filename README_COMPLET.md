@@ -24,11 +24,13 @@ Sources Externes → API DataBook → Bases de Données → Interfaces Utilisate
   - Open Library   FastAPI      PostgreSQL           Streamlit UI
   - Google Books     JWT        MongoDB              API REST
   - Babelio         Auth        Schéma test          Documentation
-  - Goodreads       CRUD        4766 livres          Analytics
+  - Goodreads       CRUD        41100 livres         Analytics
   - Kaggle         Analytics    85 critiques         Dashboard
 ```
 
 ### 🗄️ Modèle de Données Principal
+
+## MCD (Mermaid)
 
 ```mermaid
 erDiagram
@@ -40,27 +42,90 @@ erDiagram
         string description
         int nombre_pages
         string url_couverture
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
         float note_moyenne
         int nombre_avis
+        string statut_acquisition
+        string date_ajout
+        string date_modification
     }
     AUTEUR {
         int id_auteur PK
         string nom
+        string url_openlibrary
+        string url_googlebooks
         string url_babelio
+        string url_goodreads
+        string date_ajout
+        string date_modification
     }
-    USERS_JWT {
-        int id PK
-        string email UK
-        string first_name
-        string last_name
-        string hashed_password
-        boolean is_active
-        datetime created_at
+    EDITEUR {
+        int id_editeur PK
+        string nom
+        string url_openlibrary
+        string url_googlebooks
+        string url_babelio
+        string url_goodreads
+        string date_ajout
+        string date_modification
     }
-    
-    LIVRE ||--o{ LIVRE_AUTEUR : "écrit par"
-    AUTEUR ||--o{ LIVRE_AUTEUR : "auteur de"
-    USERS_JWT ||--o{ LIVRE : "possède"
+    LANGUE {
+        int id_langue PK
+        string code
+        string nom
+        string date_ajout
+        string date_modification
+    }
+    SUJET {
+        int id_sujet PK
+        string nom
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_AUTEUR {
+        int id_livre PK,FK
+        int id_auteur PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_EDITEUR {
+        int id_livre PK,FK
+        int id_editeur PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_LANGUE {
+        int id_livre PK,FK
+        int id_langue PK,FK
+        string date_ajout
+        string date_modification
+    }
+    LIVRE_SUJET {
+        int id_livre PK,FK
+        int id_sujet PK,FK
+        string date_ajout
+        string date_modification
+    }
+    EXTRACTION_LOG {
+        int id_log PK
+        string nom_fichier
+        int nombre_lignes
+        string date_extraction
+        string statut
+        string message
+    }
+
+    LIVRE ||--o{ LIVRE_AUTEUR : "a"
+    AUTEUR ||--o{ LIVRE_AUTEUR : "écrit"
+    LIVRE ||--o{ LIVRE_EDITEUR : "publié par"
+    EDITEUR ||--o{ LIVRE_EDITEUR : "publie"
+    LIVRE ||--o{ LIVRE_LANGUE : "disponible en"
+    LANGUE ||--o{ LIVRE_LANGUE : "utilisée dans"
+    LIVRE ||--o{ LIVRE_SUJET : "traite de"
+    SUJET ||--o{ LIVRE_SUJET : "apparaît dans"
 ```
 
 ## 🚀 État Actuel - Fonctionnalités Opérationnelles
@@ -638,7 +703,7 @@ databook/
 ### 📊 **Statistiques Actuelles**
 ```
 📚 Données Disponibles
-├── 4766 livres MongoDB (métadonnées complètes)
+├── 41100 livres MongoDB (métadonnées complètes)
 ├── 85 critiques Babelio (notes et analyses)
 ├── Utilisateurs PostgreSQL (croissance continue)
 └── 40+ endpoints API (coverage complète)
@@ -743,13 +808,13 @@ La plateforme est **opérationnelle** et accessible à différents publics :
 ### 🚀 **Démarrage Immédiat**
 ```bash
 # 1. Lancer l'API
-cd api && python start.py
+cd api; python start.py
 
 # 2. Lancer l'interface  
 python start_streamlit_auth.py
 
 # 3. Créer un compte sur http://localhost:8501
-# 4. Explorer 4766 livres immédiatement ! 🎉
+# 4. Explorer 41100 livres immédiatement ! 🎉
 ```
 
 DataBook est maintenant une **plateforme fonctionnelle** prête à évoluer vers ses objectifs d'écosystème complet de données bibliographiques ! 📚✨
