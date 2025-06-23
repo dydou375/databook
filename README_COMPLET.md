@@ -24,7 +24,7 @@ Sources Externes → API DataBook → Bases de Données → Interfaces Utilisate
   - Open Library   FastAPI      PostgreSQL           Streamlit UI
   - Google Books     JWT        MongoDB              API REST
   - Babelio         Auth        Schéma test          Documentation
-  - Goodreads       CRUD        4766 livres          Analytics
+  - Goodreads       CRUD        41100 livres         Analytics
   - Kaggle         Analytics    85 critiques         Dashboard
 ```
 
@@ -703,7 +703,7 @@ databook/
 ### 📊 **Statistiques Actuelles**
 ```
 📚 Données Disponibles
-├── 4766 livres MongoDB (métadonnées complètes)
+├── 41100 livres MongoDB (métadonnées complètes)
 ├── 85 critiques Babelio (notes et analyses)
 ├── Utilisateurs PostgreSQL (croissance continue)
 └── 40+ endpoints API (coverage complète)
@@ -808,13 +808,13 @@ La plateforme est **opérationnelle** et accessible à différents publics :
 ### 🚀 **Démarrage Immédiat**
 ```bash
 # 1. Lancer l'API
-cd api && python start.py
+cd api; python start.py
 
 # 2. Lancer l'interface  
 python start_streamlit_auth.py
 
 # 3. Créer un compte sur http://localhost:8501
-# 4. Explorer 4766 livres immédiatement ! 🎉
+# 4. Explorer 41100 livres immédiatement ! 🎉
 ```
 
 DataBook est maintenant une **plateforme fonctionnelle** prête à évoluer vers ses objectifs d'écosystème complet de données bibliographiques ! 📚✨
