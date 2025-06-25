@@ -26,14 +26,26 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging
 
-# Configuration du logging
+# Configuration du logging compatible Windows
+import sys
+
+# Créer les handlers séparément pour éviter les problèmes d'emojis
+file_handler = logging.FileHandler(
+    f'pipeline_master_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log',
+    encoding='utf-8'
+)
+file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+
+# Handler console simplifié pour Windows
+console_handler = logging.StreamHandler(sys.stdout)
+if sys.platform == 'win32':
+    console_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+else:
+    console_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(f'pipeline_master_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[file_handler, console_handler]
 )
 logger = logging.getLogger(__name__)
 
@@ -84,59 +96,59 @@ class PipelineMaster:
             }
         }
         
-        logger.info("🚀 PIPELINE MASTER DATABOOK INITIALISÉ")
-        logger.info(f"📂 Workspace: {self.workspace}")
-        logger.info(f"🕐 Timestamp: {self.timestamp}")
+        logger.info("PIPELINE MASTER DATABOOK INITIALISE")
+        logger.info(f"Workspace: {self.workspace}")
+        logger.info(f"Timestamp: {self.timestamp}")
 
     def afficher_menu_principal(self) -> str:
         """Affiche le menu principal et retourne le choix"""
         print("\n" + "="*60)
-        print("🎯 PIPELINE MASTER DATABOOK")
+        print("PIPELINE MASTER DATABOOK")
         print("="*60)
         print("Choisissez le mode d'exécution :")
         print()
-        print("1. 🚀 PIPELINE COMPLET (toutes les étapes)")
-        print("2. 📡 Récupération API uniquement")
-        print("3. 🕷️ Scrapping Babelio uniquement") 
-        print("4. 📊 Traitement CSV uniquement")
-        print("5. 🗄️ Import BDD uniquement")
-        print("6. ⚙️ Configuration personnalisée")
-        print("7. 📋 Status et diagnostics")
-        print("8. 🧹 Nettoyage des données temporaires")
-        print("9. ❌ Quitter")
+        print("1. PIPELINE COMPLET (toutes les étapes)")
+        print("2. Récupération API uniquement")
+        print("3. Scrapping Babelio uniquement")
+        print("4. Traitement CSV uniquement")
+        print("5. Import BDD uniquement")
+        print("6. Configuration personnalisée")
+        print("7. Status et diagnostics")
+        print("8. Nettoyage des données temporaires")
+        print("9. Quitter")
         print()
         
         return input("Votre choix (1-9): ").strip()
 
     def configurer_pipeline(self):
         """Interface de configuration personnalisée"""
-        print("\n⚙️ CONFIGURATION PERSONNALISÉE")
+        print("\nCONFIGURATION PERSONNALISÉE")
         print("-" * 40)
         
         # Configuration API
-        print("\n📡 RÉCUPÉRATION API")
+        print("\nRÉCUPÉRATION API")
         self.config['api']['max_livres_par_categorie'] = int(input(
             f"Nombre max de livres par catégorie [{self.config['api']['max_livres_par_categorie']}]: "
         ) or self.config['api']['max_livres_par_categorie'])
         
         # Configuration scrapping
-        print("\n🕷️ SCRAPPING BABELIO")
+        print("\nSCRAPPING BABELIO")
         self.config['scrapping']['max_livres_babelio'] = int(input(
             f"Nombre max de livres à scrapper [{self.config['scrapping']['max_livres_babelio']}]: "
         ) or self.config['scrapping']['max_livres_babelio'])
         
         # Configuration BDD
-        print("\n🗄️ BASES DE DONNÉES")
+        print("\nBASES DE DONNÉES")
         nouveau_schema = input(f"Nom du schéma PostgreSQL [{self.config['bdd']['schema_postgres']}]: ").strip()
         if nouveau_schema:
             self.config['bdd']['schema_postgres'] = nouveau_schema
             
-        logger.info("✅ Configuration mise à jour")
+        logger.info("Configuration mise à jour")
 
     def executer_etape_api(self) -> bool:
         """Étape 1: Récupération données API"""
         self.etat['etape_actuelle'] = 1
-        logger.info("📡 ÉTAPE 1/8: Récupération données API")
+        logger.info("ETAPE 1/8: Recuperation donnees API")
         
         try:
             script_api = self.paths['scripts_api'] / "recupération_api_livre_amelioree.py"
@@ -145,7 +157,7 @@ class PipelineMaster:
                 raise FileNotFoundError(f"Script API non trouvé: {script_api}")
             
             # Exécuter le script de récupération API
-            logger.info("🔄 Lancement récupération Google Books + OpenLibrary...")
+            logger.info("Lancement récupération Google Books + OpenLibrary...")
             
             env = os.environ.copy()
             env['PYTHONPATH'] = str(self.workspace)
@@ -156,7 +168,7 @@ class PipelineMaster:
                capture_output=True, text=True, env=env, timeout=3600)
             
             if result.returncode == 0:
-                logger.info("✅ Récupération API terminée avec succès")
+                logger.info("Récupération API terminée avec succès")
                 
                 # Compter les fichiers JSON créés
                 json_dir = self.paths['data_json'] / "livres_json_ameliore"
@@ -179,21 +191,21 @@ class PipelineMaster:
                         'fichiers_json': len(fichiers_json),
                         'total_livres': total_livres
                     }
-                    logger.info(f"📊 Résultats API: {len(fichiers_json)} fichiers, ~{total_livres:,} livres")
+                    logger.info(f"Résultats API: {len(fichiers_json)} fichiers, ~{total_livres:,} livres")
                 
                 return True
             else:
-                logger.error(f"❌ Erreur récupération API: {result.stderr}")
+                logger.error(f"Erreur récupération API: {result.stderr}")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Exception étape API: {e}")
+            logger.error(f"Exception étape API: {e}")
             return False
 
     def executer_etape_scrapping(self) -> bool:
         """Étape 2: Scrapping Babelio"""
         self.etat['etape_actuelle'] = 2
-        logger.info("🕷️ ÉTAPE 2/8: Scrapping Babelio")
+        logger.info("ETAPE 2/8: Scrapping Babelio")
         
         try:
             script_babelio = self.paths['scripts_scrapping'] / "babelio_scraper_final.py"
@@ -211,7 +223,7 @@ class PipelineMaster:
                 csv_files = [f for f in csv_files if f.stat().st_size > 1024*1024]  # > 1MB
                 
                 if csv_files:
-                    print("\n📋 Fichiers CSV disponibles:")
+                    print("\nFichiers CSV disponibles:")
                     for i, csv_file in enumerate(csv_files[:5], 1):
                         size_mb = csv_file.stat().st_size / (1024*1024)
                         print(f"   {i}. {csv_file.name} ({size_mb:.1f} MB)")
@@ -221,24 +233,24 @@ class PipelineMaster:
                         csv_source = str(csv_files[int(choix)-1])
             
             if csv_source:
-                logger.info(f"🔄 Scrapping Babelio depuis: {Path(csv_source).name}")
+                logger.info(f"Scrapping Babelio depuis: {Path(csv_source).name}")
                 # Note: Le script Babelio est interactif, on le lance en mode guidé
-                logger.info("💡 Script Babelio prêt - lancement manuel requis pour configuration interactive")
+                logger.info("Script Babelio prêt - lancement manuel requis pour configuration interactive")
                 self.etat['resultats']['scrapping'] = {'status': 'prêt', 'source': csv_source}
             else:
-                logger.info("⏭️ Scrapping Babelio ignoré - aucun fichier CSV source")
+                logger.info("Scrapping Babelio ignoré - aucun fichier CSV source")
                 self.etat['resultats']['scrapping'] = {'status': 'ignoré'}
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Exception étape scrapping: {e}")
+            logger.error(f"Exception étape scrapping: {e}")
             return False
 
     def executer_etape_nettoyage_csv(self) -> bool:
         """Étape 3: Nettoyage et formatage CSV"""
         self.etat['etape_actuelle'] = 3
-        logger.info("📊 ÉTAPE 3/8: Nettoyage et formatage CSV")
+        logger.info("ETAPE 3/8: Nettoyage et formatage CSV")
         
         try:
             # Chercher des fichiers CSV à nettoyer
@@ -250,19 +262,19 @@ class PipelineMaster:
             csv_bruts = [f for f in csv_bruts if f.stat().st_size > 10*1024*1024]
             
             if not csv_bruts:
-                logger.info("⏭️ Aucun gros fichier CSV à nettoyer")
+                logger.info("Aucun gros fichier CSV à nettoyer")
                 return True
             
-            logger.info(f"🔍 Trouvé {len(csv_bruts)} fichiers CSV volumineux")
+            logger.info(f"Trouvé {len(csv_bruts)} fichiers CSV volumineux")
             
             # Utiliser le script de nettoyage
             script_nettoyage = self.paths['scripts_bdd'] / "livres" / "nettoyage_ultra.py"
             
             if script_nettoyage.exists():
-                logger.info("🧹 Lancement nettoyage des données...")
+                logger.info("Lancement nettoyage des données...")
                 
                 # Le script de nettoyage est souvent interactif
-                logger.info("💡 Script de nettoyage disponible pour lancement manuel")
+                logger.info("Script de nettoyage disponible pour lancement manuel")
                 self.etat['resultats']['nettoyage'] = {
                     'fichiers_detectes': len(csv_bruts),
                     'status': 'prêt'
@@ -271,13 +283,13 @@ class PipelineMaster:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Exception étape nettoyage: {e}")
+            logger.error(f"Exception étape nettoyage: {e}")
             return False
 
     def executer_etape_postgresql(self) -> bool:
         """Étape 4: Import PostgreSQL"""
         self.etat['etape_actuelle'] = 4
-        logger.info("🗄️ ÉTAPE 4/8: Import PostgreSQL")
+        logger.info("ETAPE 4/8: Import PostgreSQL")
         
         try:
             script_postgres = self.paths['scripts_bdd'] / "livres" / "formatage_bdd_postgresql.py"
@@ -288,40 +300,40 @@ class PipelineMaster:
             # Vérifier la disponibilité de PostgreSQL
             try:
                 import psycopg2
-                logger.info("✅ Driver PostgreSQL disponible")
+                logger.info("Driver PostgreSQL disponible")
             except ImportError:
-                logger.warning("⚠️ Driver PostgreSQL manquant (pip install psycopg2-binary)")
-                return False
+                logger.warning("Driver PostgreSQL manquant (pip install psycopg2-binary)")
+                return True
             
             # Chercher des fichiers CSV nettoyés
-            csv_propres = []
-            for pattern in ["*nettoye*.csv", "*propre*.csv", "*clean*.csv"]:
-                csv_propres.extend(self.workspace.rglob(pattern))
+            csv_propres = list(self.workspace.rglob("*nettoye*.csv"))
+            csv_propres.extend(self.workspace.rglob("*clean*.csv"))
+            csv_propres.extend(self.workspace.rglob("*ultra_propre*.csv"))
             
             if csv_propres:
                 csv_choisi = max(csv_propres, key=lambda x: x.stat().st_size)
-                logger.info(f"📊 Fichier CSV sélectionné: {csv_choisi.name}")
+                logger.info(f"Fichier CSV sélectionné: {csv_choisi.name}")
                 
-                logger.info("💡 Import PostgreSQL prêt - configuration du schéma nécessaire")
+                logger.info("Import PostgreSQL prêt - configuration du schéma nécessaire")
                 self.etat['resultats']['postgresql'] = {
                     'fichier_source': str(csv_choisi),
                     'schema': self.config['bdd']['schema_postgres'],
                     'status': 'prêt'
                 }
             else:
-                logger.info("⏭️ Aucun fichier CSV nettoyé trouvé pour PostgreSQL")
-                self.etat['resultats']['postgresql'] = {'status': 'aucun_fichier'}
+                logger.info("Aucun fichier CSV nettoyé trouvé pour PostgreSQL")
+                self.etat['resultats']['postgresql'] = {'status': 'aucun fichier'}
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Exception étape PostgreSQL: {e}")
+            logger.error(f"Exception étape PostgreSQL: {e}")
             return False
 
     def executer_etape_mongodb(self) -> bool:
         """Étape 5: Import MongoDB"""
         self.etat['etape_actuelle'] = 5
-        logger.info("🍃 ÉTAPE 5/8: Import MongoDB")
+        logger.info("ETAPE 5/8: Import MongoDB")
         
         try:
             script_mongo = self.paths['scripts_bdd'] / "nosql" / "import_mongodb.py"
@@ -332,9 +344,9 @@ class PipelineMaster:
             # Vérifier la disponibilité de MongoDB
             try:
                 import pymongo
-                logger.info("✅ Driver MongoDB disponible")
+                logger.info("Driver MongoDB disponible")
             except ImportError:
-                logger.warning("⚠️ Driver MongoDB manquant (pip install pymongo)")
+                logger.warning("Driver MongoDB manquant (pip install pymongo)")
                 return False
             
             # Chercher des fichiers JSON
@@ -345,28 +357,28 @@ class PipelineMaster:
             
             if json_files:
                 total_size = sum(f.stat().st_size for f in json_files) / (1024*1024)
-                logger.info(f"📄 Trouvé {len(json_files)} fichiers JSON ({total_size:.1f} MB)")
+                logger.info(f"Trouvé {len(json_files)} fichiers JSON ({total_size:.1f} MB)")
                 
-                logger.info("💡 Import MongoDB prêt - vérification connexion nécessaire")
+                logger.info("Import MongoDB prêt - vérification connexion nécessaire")
                 self.etat['resultats']['mongodb'] = {
                     'fichiers_json': len(json_files),
                     'taille_mb': round(total_size, 1),
                     'status': 'prêt'
                 }
             else:
-                logger.info("⏭️ Aucun fichier JSON trouvé pour MongoDB")
+                logger.info("Aucun fichier JSON trouvé pour MongoDB")
                 self.etat['resultats']['mongodb'] = {'status': 'aucun_fichier'}
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Exception étape MongoDB: {e}")
+            logger.error(f"Exception étape MongoDB: {e}")
             return False
 
     def verifier_environnement(self) -> bool:
         """Étape 6: Vérification de l'environnement"""
         self.etat['etape_actuelle'] = 6
-        logger.info("✅ ÉTAPE 6/8: Vérification environnement")
+        logger.info("ETAPE 6/8: Vérification environnement")
         
         verifications = {
             'python': sys.version_info >= (3, 8),
@@ -378,16 +390,16 @@ class PipelineMaster:
             'pymongo': self._verifier_module('pymongo'),
         }
         
-        logger.info("🔍 Vérification des dépendances:")
+        logger.info("Vérification des dépendances:")
         for module, status in verifications.items():
-            status_icon = "✅" if status else "❌"
+            status_icon = "OK" if status else "ERREUR"
             logger.info(f"   {status_icon} {module}")
         
         # Vérifier les chemins
-        logger.info("📂 Vérification des chemins:")
+        logger.info("Vérification des chemins:")
         for nom, chemin in self.paths.items():
             exists = chemin.exists()
-            status_icon = "✅" if exists else "❌"
+            status_icon = "OK" if exists else "ERREUR"
             logger.info(f"   {status_icon} {nom}: {chemin}")
         
         self.etat['resultats']['environnement'] = verifications
@@ -404,7 +416,7 @@ class PipelineMaster:
     def generer_rapport(self):
         """Étape 7: Génération du rapport final"""
         self.etat['etape_actuelle'] = 7
-        logger.info("📋 ÉTAPE 7/8: Génération du rapport")
+        logger.info("ETAPE 7/8: Génération du rapport")
         
         rapport = {
             'timestamp': self.timestamp,
@@ -419,27 +431,27 @@ class PipelineMaster:
         with open(fichier_rapport, 'w', encoding='utf-8') as f:
             json.dump(rapport, f, indent=2, default=str)
         
-        logger.info(f"📄 Rapport sauvegardé: {fichier_rapport.name}")
+        logger.info(f"Rapport sauvegardé: {fichier_rapport.name}")
         
         # Afficher le résumé
         print("\n" + "="*60)
-        print("📊 RÉSUMÉ DU PIPELINE")
+        print("RÉSUMÉ DU PIPELINE")
         print("="*60)
-        print(f"🕐 Durée totale: {rapport['duree_totale']:.1f} secondes")
-        print(f"📂 Workspace: {self.workspace}")
-        print(f"🏷️ Timestamp: {self.timestamp}")
+        print(f"Durée totale: {rapport['duree_totale']:.1f} secondes")
+        print(f"Workspace: {self.workspace}")
+        print(f"Timestamp: {self.timestamp}")
         print()
         
         for etape, resultat in self.etat['resultats'].items():
             print(f"• {etape.upper()}: {resultat.get('status', 'terminé')}")
             
         if self.etat['erreurs']:
-            print(f"\n⚠️ {len(self.etat['erreurs'])} erreurs rencontrées")
+            print(f"\n{len(self.etat['erreurs'])} erreurs rencontrées")
 
     def nettoyer_temporaires(self):
         """Étape 8: Nettoyage des fichiers temporaires"""
         self.etat['etape_actuelle'] = 8
-        logger.info("🧹 ÉTAPE 8/8: Nettoyage fichiers temporaires")
+        logger.info("ETAPE 8/8: Nettoyage fichiers temporaires")
         
         # Patterns de fichiers temporaires à nettoyer
         patterns_temp = [
@@ -458,61 +470,61 @@ class PipelineMaster:
                         shutil.rmtree(fichier)
                         fichiers_supprimes += 1
                 except Exception as e:
-                    logger.warning(f"⚠️ Impossible de supprimer {fichier}: {e}")
+                    logger.warning(f"Impossible de supprimer {fichier}: {e}")
         
-        logger.info(f"🧹 {fichiers_supprimes} fichiers temporaires supprimés")
+        logger.info(f"{fichiers_supprimes} fichiers temporaires supprimés")
 
     def executer_pipeline_complet(self):
         """Exécute le pipeline complet"""
-        logger.info("🚀 DÉMARRAGE PIPELINE COMPLET")
+        logger.info("DÉMARRAGE PIPELINE COMPLET")
         print(f"\n{'='*60}")
-        print("🎯 PIPELINE COMPLET DATABOOK")
+        print("PIPELINE COMPLET DATABOOK")
         print(f"{'='*60}")
         
         etapes = [
-            ("📡 Récupération API", self.executer_etape_api),
-            ("🕷️ Scrapping Babelio", self.executer_etape_scrapping),
-            ("📊 Nettoyage CSV", self.executer_etape_nettoyage_csv),
-            ("🗄️ PostgreSQL", self.executer_etape_postgresql),
-            ("🍃 MongoDB", self.executer_etape_mongodb),
-            ("✅ Vérification", self.verifier_environnement),
-            ("📋 Rapport", self.generer_rapport),
-            ("🧹 Nettoyage", self.nettoyer_temporaires)
+            ("Récupération API", self.executer_etape_api),
+            ("Scrapping Babelio", self.executer_etape_scrapping),
+            ("Nettoyage CSV", self.executer_etape_nettoyage_csv),
+            ("PostgreSQL", self.executer_etape_postgresql),
+            ("MongoDB", self.executer_etape_mongodb),
+            ("Vérification", self.verifier_environnement),
+            ("Rapport", self.generer_rapport),
+            ("Nettoyage", self.nettoyer_temporaires)
         ]
         
         for nom_etape, fonction_etape in etapes:
             print(f"\n{'-'*60}")
-            print(f"▶️ {nom_etape}")
+            print(f">> {nom_etape}")
             print(f"{'-'*60}")
             
             try:
                 succes = fonction_etape()
                 if succes:
-                    logger.info(f"✅ {nom_etape} terminée avec succès")
+                    logger.info(f"{nom_etape} terminée avec succès")
                 else:
-                    logger.warning(f"⚠️ {nom_etape} terminée avec des avertissements")
+                    logger.warning(f"{nom_etape} terminée avec des avertissements")
             except Exception as e:
-                logger.error(f"❌ Erreur dans {nom_etape}: {e}")
+                logger.error(f"Erreur dans {nom_etape}: {e}")
                 self.etat['erreurs'].append(f"{nom_etape}: {e}")
         
-        logger.info("🏁 PIPELINE COMPLET TERMINÉ")
+        logger.info("PIPELINE COMPLET TERMINÉ")
 
     def afficher_status(self):
         """Affiche le status actuel et les diagnostics"""
-        print("\n📋 STATUS ET DIAGNOSTICS")
+        print("\nSTATUS ET DIAGNOSTICS")
         print("="*50)
         
         # Informations générales
-        print(f"📂 Workspace: {self.workspace}")
-        print(f"🐍 Python: {sys.version.split()[0]}")
-        print(f"🕐 Timestamp: {self.timestamp}")
+        print(f"Workspace: {self.workspace}")
+        print(f"Python: {sys.version.split()[0]}")
+        print(f"Timestamp: {self.timestamp}")
         print()
         
         # Vérifier les dossiers
-        print("📁 STRUCTURE DES DOSSIERS:")
+        print("STRUCTURE DES DOSSIERS:")
         for nom, chemin in self.paths.items():
             exists = chemin.exists()
-            status = "✅" if exists else "❌"
+            status = "OK" if exists else "ERREUR"
             size_info = ""
             
             if exists and chemin.is_dir():
@@ -524,25 +536,23 @@ class PipelineMaster:
         print()
         
         # Vérifier les données
-        print("📊 DONNÉES DISPONIBLES:")
+        print("DONNÉES DISPONIBLES:")
         
-        # JSON
-        json_dir = self.paths['data_json'] / "livres_json_ameliore"
-        if json_dir.exists():
-            json_files = list(json_dir.glob("*.json"))
+        # Fichiers JSON
+        json_files = list(self.workspace.rglob("*.json"))
+        if json_files:
             total_size = sum(f.stat().st_size for f in json_files) / (1024*1024)
-            print(f"   📄 JSON: {len(json_files)} fichiers ({total_size:.1f} MB)")
+            print(f"   JSON: {len(json_files)} fichiers ({total_size:.1f} MB)")
         else:
-            print("   📄 JSON: Aucun fichier")
+            print("   JSON: Aucun fichier")
         
-        # CSV
+        # Fichiers CSV
         csv_files = list(self.workspace.rglob("*.csv"))
-        csv_files = [f for f in csv_files if f.stat().st_size > 1024*1024]
         if csv_files:
             total_size = sum(f.stat().st_size for f in csv_files) / (1024*1024)
-            print(f"   📊 CSV: {len(csv_files)} fichiers ({total_size:.1f} MB)")
+            print(f"   CSV: {len(csv_files)} fichiers ({total_size:.1f} MB)")
         else:
-            print("   📊 CSV: Aucun fichier volumineux")
+            print("   CSV: Aucun fichier")
 
 def main():
     """Fonction principale"""

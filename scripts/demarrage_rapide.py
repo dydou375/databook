@@ -24,8 +24,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 try:
     from pipeline_master import PipelineMaster
 except ImportError:
-    print("❌ Impossible d'importer pipeline_master.py")
-    print("🔧 Assurez-vous que le fichier pipeline_master.py est présent")
+    print("ERREUR: Impossible d'importer pipeline_master.py")
+    print("Assurez-vous que le fichier pipeline_master.py est présent")
     sys.exit(1)
 
 class DemarrageRapide:
@@ -37,19 +37,19 @@ class DemarrageRapide:
         # Configurations prédéfinies
         self.configs = {
             'minimal': {
-                'description': '🚀 Configuration minimale - test rapide',
+                'description': 'Configuration minimale - test rapide',
                 'api_max_livres': 100,
                 'scrapping_max': 50,
                 'etapes': ['api', 'verification']
             },
             'standard': {
-                'description': '📊 Configuration standard - usage normal',
+                'description': 'Configuration standard - usage normal',
                 'api_max_livres': 1000,
                 'scrapping_max': 500,
                 'etapes': ['api', 'nettoyage', 'postgresql', 'mongodb', 'verification']
             },
             'complet': {
-                'description': '🎯 Configuration complète - toutes les données',
+                'description': 'Configuration complète - toutes les données',
                 'api_max_livres': 5000,
                 'scrapping_max': 2000,
                 'etapes': ['api', 'scrapping', 'nettoyage', 'postgresql', 'mongodb', 'verification']
@@ -58,7 +58,7 @@ class DemarrageRapide:
 
     def detecter_environnement(self):
         """Détecte automatiquement l'environnement et les capacités"""
-        print("🔍 DÉTECTION AUTOMATIQUE DE L'ENVIRONNEMENT")
+        print("DÉTECTION AUTOMATIQUE DE L'ENVIRONNEMENT")
         print("-" * 50)
         
         environnement = {}
@@ -66,7 +66,7 @@ class DemarrageRapide:
         # Vérifier Python
         version_python = sys.version_info
         environnement['python'] = f"{version_python.major}.{version_python.minor}.{version_python.micro}"
-        print(f"🐍 Python: {environnement['python']}")
+        print(f"Python: {environnement['python']}")
         
         # Vérifier les modules essentiels
         modules_requis = ['requests', 'pandas', 'bs4', 'sqlalchemy', 'psycopg2', 'pymongo']
@@ -77,10 +77,10 @@ class DemarrageRapide:
             try:
                 __import__(module)
                 modules_ok.append(module)
-                print(f"✅ {module}")
+                print(f"OK {module}")
             except ImportError:
                 modules_manquants.append(module)
-                print(f"❌ {module}")
+                print(f"ERREUR {module}")
         
         environnement['modules_ok'] = modules_ok
         environnement['modules_manquants'] = modules_manquants
@@ -90,10 +90,10 @@ class DemarrageRapide:
             import shutil
             espace_libre = shutil.disk_usage(self.workspace).free / (1024**3)
             environnement['espace_libre_gb'] = round(espace_libre, 1)
-            print(f"💾 Espace libre: {espace_libre:.1f} GB")
+            print(f"Espace libre: {espace_libre:.1f} GB")
         except:
             environnement['espace_libre_gb'] = 0
-            print("💾 Espace libre: Impossible de détecter")
+            print("Espace libre: Impossible de détecter")
         
         # Vérifier les dossiers existants
         dossiers = ['scripts', 'bdd', 'data']
@@ -101,9 +101,9 @@ class DemarrageRapide:
         for dossier in dossiers:
             if (self.workspace / dossier).exists():
                 dossiers_ok.append(dossier)
-                print(f"📁 {dossier}: ✅")
+                print(f"Dossier {dossier}: OK")
             else:
-                print(f"📁 {dossier}: ❌")
+                print(f"Dossier {dossier}: MANQUANT")
         
         environnement['dossiers_ok'] = dossiers_ok
         
@@ -111,7 +111,7 @@ class DemarrageRapide:
 
     def recommander_configuration(self, environnement):
         """Recommande une configuration basée sur l'environnement"""
-        print("\n🎯 RECOMMANDATION AUTOMATIQUE")
+        print("\nRECOMMANDATION AUTOMATIQUE")
         print("-" * 40)
         
         # Critères de recommandation
@@ -131,9 +131,9 @@ class DemarrageRapide:
             config_recommandee = 'standard'
             raison = "Configuration équilibrée"
         
-        print(f"💡 Configuration recommandée: {config_recommandee}")
-        print(f"📋 Raison: {raison}")
-        print(f"📝 Description: {self.configs[config_recommandee]['description']}")
+        print(f"Configuration recommandée: {config_recommandee}")
+        print(f"Raison: {raison}")
+        print(f"Description: {self.configs[config_recommandee]['description']}")
         
         return config_recommandee
 
@@ -142,7 +142,7 @@ class DemarrageRapide:
         if not modules_manquants:
             return True
             
-        print(f"\n📦 MODULES MANQUANTS: {len(modules_manquants)}")
+        print(f"\nMODULES MANQUANTS: {len(modules_manquants)}")
         print("-" * 40)
         
         # Correspondance modules -> packages pip
@@ -159,23 +159,23 @@ class DemarrageRapide:
         for module in modules_manquants:
             if module in pip_packages:
                 packages_to_install.append(pip_packages[module])
-                print(f"📦 {module} -> pip install {pip_packages[module]}")
+                print(f"{module} -> pip install {pip_packages[module]}")
         
         if packages_to_install:
-            print(f"\n💡 Commande d'installation complète:")
+            print(f"\nCommande d'installation complète:")
             print(f"pip install {' '.join(packages_to_install)}")
             
             reponse = input("\nInstaller automatiquement? (o/N): ").strip().lower()
             if reponse == 'o':
                 try:
-                    print("📥 Installation en cours...")
+                    print("Installation en cours...")
                     subprocess.run([
                         sys.executable, '-m', 'pip', 'install'
                     ] + packages_to_install, check=True)
-                    print("✅ Installation terminée")
+                    print("Installation terminée")
                     return True
                 except subprocess.CalledProcessError as e:
-                    print(f"❌ Erreur d'installation: {e}")
+                    print(f"ERREUR d'installation: {e}")
                     return False
         
         return False
@@ -194,34 +194,34 @@ class DemarrageRapide:
 
     def executer_etapes_selectionnees(self, pipeline, etapes):
         """Exécute les étapes sélectionnées"""
-        print(f"\n🚀 EXÉCUTION DE {len(etapes)} ÉTAPES")
+        print(f"\nEXÉCUTION DE {len(etapes)} ÉTAPES")
         print("=" * 50)
         
         mapping_etapes = {
-            'api': ('📡 Récupération API', pipeline.executer_etape_api),
-            'scrapping': ('🕷️ Scrapping Babelio', pipeline.executer_etape_scrapping),
-            'nettoyage': ('📊 Nettoyage CSV', pipeline.executer_etape_nettoyage_csv),
-            'postgresql': ('🗄️ PostgreSQL', pipeline.executer_etape_postgresql),
-            'mongodb': ('🍃 MongoDB', pipeline.executer_etape_mongodb),
-            'verification': ('✅ Vérification', pipeline.verifier_environnement)
+            'api': ('Récupération API', pipeline.executer_etape_api),
+            'scrapping': ('Scrapping Babelio', pipeline.executer_etape_scrapping),
+            'nettoyage': ('Nettoyage CSV', pipeline.executer_etape_nettoyage_csv),
+            'postgresql': ('PostgreSQL', pipeline.executer_etape_postgresql),
+            'mongodb': ('MongoDB', pipeline.executer_etape_mongodb),
+            'verification': ('Vérification', pipeline.verifier_environnement)
         }
         
         resultats = {}
-        
         for etape in etapes:
             if etape in mapping_etapes:
                 nom, fonction = mapping_etapes[etape]
-                print(f"\n▶️ {nom}")
+                print(f"\n>> {nom}")
                 print("-" * 40)
                 
                 try:
                     succes = fonction()
-                    resultats[etape] = 'succès' if succes else 'avertissement'
-                    status_icon = "✅" if succes else "⚠️"
-                    print(f"{status_icon} {nom} terminé")
+                    resultats[etape] = succes
+                    status_icon = "OK" if succes else "AVERTISSEMENT"
+                    print(f"Status: {status_icon}")
+                    
                 except Exception as e:
-                    resultats[etape] = f'erreur: {e}'
-                    print(f"❌ Erreur dans {nom}: {e}")
+                    resultats[etape] = False
+                    print(f"ERREUR dans {nom}: {e}")
         
         return resultats
 
