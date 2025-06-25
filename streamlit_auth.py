@@ -83,7 +83,11 @@ def make_api_request(endpoint, method="GET", headers=None, data=None, params=Non
         elif method == "PUT":
             response = requests.put(url, headers=headers, json=data, timeout=10)
         elif method == "DELETE":
-            response = requests.delete(url, headers=headers, timeout=10)
+            # Supporter l'envoi de JSON pour DELETE (nécessaire pour delete-account)
+            if data:
+                response = requests.delete(url, headers=headers, json=data, timeout=10)
+            else:
+                response = requests.delete(url, headers=headers, timeout=10)
         
         return response.status_code, response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
     except Exception as e:

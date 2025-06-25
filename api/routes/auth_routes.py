@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 from database.database import get_db
 from database.crud import user_crud
-from models.models import User, UserCreate, Token
+from models.models import User, UserCreate, Token, DeleteAccountRequest, LoginRequest
 from auth.auth import (
     verify_password, 
     create_access_token, 
@@ -71,18 +71,12 @@ async def login_oauth2(
 
 @auth_router.post("/login", response_model=Token)
 async def login_json(
-    credentials: Dict[str, str],
+    credentials: LoginRequest,
     db: Session = Depends(get_db)
 ):
     """🔐 Connexion JSON (avec email/password en JSON)"""
-    email = credentials.get("email")
-    password = credentials.get("password")
-    
-    if not email or not password:
-        raise HTTPException(
-            status_code=400,
-            detail="Email et mot de passe requis"
-        )
+    email = credentials.email
+    password = credentials.password
     
     # Authentifier l'utilisateur
     user = user_crud.get_user_by_email(db, email=email)
@@ -145,22 +139,14 @@ async def logout(current_user: User = Depends(get_current_active_user)):
 
 @auth_router.delete("/delete-account")
 async def delete_account(
-    password_confirmation: Dict[str, str],
+    password_data: DeleteAccountRequest,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """🗑️ Supprimer définitivement le compte utilisateur"""
     
-    # Vérifier le mot de passe pour sécuriser la suppression
-    password = password_confirmation.get("password")
-    if not password:
-        raise HTTPException(
-            status_code=400,
-            detail="Mot de passe requis pour confirmer la suppression"
-        )
-    
     # Vérifier le mot de passe actuel
-    if not verify_password(password, current_user.hashed_password):
+    if not verify_password(password_data.password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Mot de passe incorrect"
@@ -168,7 +154,13 @@ async def delete_account(
     
     try:
         # Supprimer l'utilisateur de la base de données
-        user_crud.delete_user(db, user_id=current_user.id)
+        success = user_crud.delete_user(db, user_id=current_user.id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Erreur lors de la suppression du compte"
+            )
         
         return {
             "message": "✅ Compte supprimé avec succès",

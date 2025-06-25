@@ -14,7 +14,7 @@ except ImportError:
 from auth.auth import require_jwt, optional_jwt
 
 # 📚 Router MongoDB optimisé (10 endpoints essentiels)
-mongo_livres_router = APIRouter(prefix="/mongo-livres", tags=["📚 MongoDB - 4766 Livres & 85 Critiques"])
+mongo_livres_router = APIRouter(prefix="/mongo-livres", tags=["📚 MongoDB - 41100 Livres & 85 Critiques"])
 
 async def check_mongodb():
     """Vérifier la disponibilité de MongoDB"""

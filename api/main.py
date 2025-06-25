@@ -70,17 +70,11 @@ app = FastAPI(
     
     **42 endpoints essentiels** pour l'analyse et la gestion des données de livres
     
-    ### ✅ Optimisations appliquées :
-    * **-45% d'endpoints** (73+ → 40 endpoints)
-    * Suppression routes legacy (users/items génériques)
-    * Suppression endpoints debug/test  
-    * Fusion routes redondantes
-    * Authentification JWT unifiée
-    
     ### 📊 Bases de données hybrides :
     * **PostgreSQL** : `/postgres/*` - 28 requêtes SQL optimisées
     * **MongoDB** : `/mongo/*` - 39 requêtes NoSQL optimisées
-    * **4766 livres MongoDB + 85 critiques Babelio**
+    * **environ 41100 livres MongoDB + 85 critiques Babelio**
+    * **environ 50000 livres PostgreSQL**
     
     ### 🔐 Authentification JWT :
     * Login/Register : `/auth/*`
@@ -91,7 +85,7 @@ app = FastAPI(
         * **Auth** (7) : register, token(OAuth2), login(JSON), me, refresh, logout, delete-account
     * **PostgreSQL Livres** (8) : CRUD livres schéma test
     * **PostgreSQL Analytics** (12) : statistiques avancées
-    * **MongoDB Livres** (10) : 4766 livres + critiques
+    * **MongoDB Livres** (10) : 41100 livres + critiques
     * **MongoDB Analytics** (5) : métriques NoSQL
     """,
     version="3.0.0",

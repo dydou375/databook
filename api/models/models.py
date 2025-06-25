@@ -131,4 +131,25 @@ class PaginatedResponse(BaseModel):
     total: int
     page: int
     per_page: int
-    pages: int 
+    pages: int
+
+# Modèle pour la suppression de compte
+class DeleteAccountRequest(BaseModel):
+    password: str
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Le mot de passe est requis pour confirmer la suppression')
+        return v
+
+# Modèle pour les credentials de connexion
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Le mot de passe est requis')
+        return v 
