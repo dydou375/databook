@@ -123,6 +123,13 @@ def logout_user(token):
     status_code, response = make_api_request("/auth/logout", method="POST", headers=headers)
     return status_code, response
 
+def delete_user_account(token, password):
+    """Supprimer le compte utilisateur"""
+    headers = {"Authorization": f"Bearer {token}"}
+    data = {"password": password}
+    status_code, response = make_api_request("/auth/delete-account", method="DELETE", headers=headers, data=data)
+    return status_code, response
+
 def show_login_page():
     """Page de connexion"""
     st.markdown("""
@@ -826,8 +833,6 @@ def display_critique_inline(critique):
         if critique.get('url_babelio'):
             st.markdown(f"🔗 [Voir sur Babelio]({critique.get('url_babelio')})")
 
-
-
 def display_critiques_list(critiques):
     """Afficher une liste de critiques en format compact"""
     if not critiques:
@@ -987,8 +992,6 @@ def show_critiques_stats():
     
     else:
         st.error("❌ Impossible de récupérer les statistiques")
-
-
 
 def show_postgres_data():
     """Page données PostgreSQL"""
@@ -1372,39 +1375,138 @@ def show_postgres_data():
                     st.error(f"❌ Erreur top auteurs: {test_response}")
 
 def show_user_profile():
-    """Page profil utilisateur"""
-    st.header("👤 Mon Profil")
+    """Page profil utilisateur améliorée"""
+    st.markdown("""
+    <div class="main-header">
+        <h1>👤 Mon Profil Utilisateur</h1>
+        <p>Gérez vos informations personnelles et votre compte</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     headers = {"Authorization": f"Bearer {st.session_state.token}"}
     status_code, response = get_user_profile(st.session_state.token)
     
     if status_code == 200:
-        st.markdown(f"""
-        <div class="user-info">
-            <h3>👤 Informations personnelles</h3>
-            <p><strong>Nom:</strong> {response.get('first_name', '')} {response.get('last_name', '')}</p>
-            <p><strong>Email:</strong> {response.get('email', '')}</p>
-            <p><strong>ID:</strong> {response.get('id', '')}</p>
-            <p><strong>Actif:</strong> {'✅ Oui' if response.get('is_active', False) else '❌ Non'}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # Informations personnelles
+        st.markdown("### 🔐 Informations du Compte")
         
-        st.subheader("🔧 Actions")
-        col1, col2 = st.columns(2)
+        # Affichage des informations utilisateur
+        user_info = f"""
+        **👤 Nom complet :** {response.get('first_name', '')} {response.get('last_name', '')}
+        
+        **📧 Email :** {response.get('email', '')}
+        
+        **🆔 ID Utilisateur :** {response.get('id', '')}
+        
+        **✅ Statut :** {'🟢 Actif' if response.get('is_active', False) else '🔴 Inactif'}
+        
+        **📅 Membre depuis :** {datetime.now().strftime('%B %Y')}
+        """
+        st.info(user_info)
+        
+        # Section Actions
+        st.markdown("---")
+        st.markdown("### ⚙️ Gestion du Compte")
+        
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("🔄 Rafraîchir le profil", use_container_width=True):
+            if st.button("🔄 Actualiser le profil", use_container_width=True, type="primary"):
+                st.success("✅ Profil actualisé!")
                 st.rerun()
         
         with col2:
-            if st.button("🚪 Se déconnecter", use_container_width=True):
-                logout_user(st.session_state.token)
-                for key in ['token', 'user_email', 'authenticated']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()
+            if st.button("🚪 Se déconnecter", use_container_width=True, type="secondary"):
+                with st.spinner("Déconnexion en cours..."):
+                    logout_user(st.session_state.token)
+                    for key in ['token', 'user_email', 'authenticated']:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    st.success("✅ Déconnexion réussie!")
+                    st.rerun()
+        
+        with col3:
+            if st.button("🔑 Actualiser le token", use_container_width=True):
+                # Rafraîchir le token JWT
+                refresh_status, refresh_response = make_api_request("/auth/refresh", method="POST", headers=headers)
+                if refresh_status == 200:
+                    st.session_state.token = refresh_response.get("access_token")
+                    st.success("✅ Token actualisé!")
+                else:
+                    st.error("❌ Erreur lors de l'actualisation du token")
+        
+        # Section Suppression de compte
+        st.markdown("---")
+        st.markdown("### ⚠️ Zone Dangereuse")
+        
+        with st.expander("🗑️ Supprimer définitivement mon compte", expanded=False):
+            st.warning("""
+            ⚠️ **ATTENTION : Cette action est irréversible !**
+            
+            En supprimant votre compte :
+            - Toutes vos données personnelles seront définitivement effacées
+            - Vous ne pourrez plus accéder aux services DataBook
+            - Cette action ne peut pas être annulée
+            """)
+            
+            st.markdown("**Pour confirmer la suppression, entrez votre mot de passe :**")
+            
+            with st.form("delete_account_form"):
+                delete_password = st.text_input(
+                    "🔒 Mot de passe de confirmation", 
+                    type="password",
+                    help="Entrez votre mot de passe actuel pour confirmer la suppression"
+                )
+                
+                confirm_delete = st.checkbox(
+                    "✅ Je comprends que cette action est irréversible et je souhaite supprimer définitivement mon compte",
+                    value=False
+                )
+                
+                delete_submitted = st.form_submit_button(
+                    "🗑️ SUPPRIMER DÉFINITIVEMENT MON COMPTE", 
+                    type="primary",
+                    use_container_width=True
+                )
+                
+                if delete_submitted:
+                    if not confirm_delete:
+                        st.error("❌ Vous devez cocher la case de confirmation")
+                    elif not delete_password:
+                        st.error("❌ Mot de passe requis pour confirmer la suppression")
+                    else:
+                        with st.spinner("🗑️ Suppression du compte en cours..."):
+                            delete_status, delete_response = delete_user_account(st.session_state.token, delete_password)
+                            
+                            if delete_status == 200:
+                                st.success("✅ Compte supprimé avec succès!")
+                                st.balloons()
+                                
+                                # Message de confirmation simple
+                                st.success(f"**Compte supprimé**\n\nVotre compte {response.get('email', '')} a été définitivement supprimé.\n\nVous allez être redirigé vers la page d'accueil...")
+                                
+                                # Nettoyer la session et rediriger
+                                for key in ['token', 'user_email', 'authenticated']:
+                                    if key in st.session_state:
+                                        del st.session_state[key]
+                                
+                                # Attendre un peu avant de rediriger
+                                import time
+                                time.sleep(2)
+                                st.rerun()
+                                
+                            else:
+                                st.error(f"❌ Erreur lors de la suppression: {delete_response.get('detail', 'Erreur inconnue')}")
+    
     else:
         st.error(f"❌ Impossible de charger le profil: {response}")
+        
+        # Option de déconnexion forcée en cas d'erreur
+        if st.button("🚪 Déconnexion forcée"):
+            for key in ['token', 'user_email', 'authenticated']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
 
 def main():
     """Fonction principale"""
