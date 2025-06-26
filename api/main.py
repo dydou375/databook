@@ -16,6 +16,8 @@ from routes.routes_postgres_extras import postgres_extras_router  # PostgreSQL -
 from routes.routes_mongo_livres import mongo_livres_router  # MongoDB - Livres & Critiques
 from routes.routes_mongo_extras import mongo_extras_router  # MongoDB - Analytics
 from routes.auth_routes import auth_router  # Authentification JWT
+from routes.routes_hybrid import hybrid_router  # Requêtes hybrides PostgreSQL + MongoDB
+from routes.routes_hybrid_optimized import hybrid_optimized_router  # Version optimisée pour problèmes mémoire
 
 # ❌ Imports supprimés pour optimisation (33 endpoints supprimés) :
 # - models.models User/Item (legacy) - remplacés par auth JWT
@@ -68,7 +70,7 @@ app = FastAPI(
     description="""
     ## 🚀 API DataBook Optimisée v3.0
     
-    **42 endpoints essentiels** pour l'analyse et la gestion des données de livres
+    **46 endpoints essentiels** pour l'analyse et la gestion des données de livres
     
     ### 📊 Bases de données hybrides :
     * **PostgreSQL** : `/postgres/*` - 28 requêtes SQL optimisées
@@ -87,6 +89,7 @@ app = FastAPI(
     * **PostgreSQL Analytics** (12) : statistiques avancées
     * **MongoDB Livres** (10) : 41100 livres + critiques
     * **MongoDB Analytics** (5) : métriques NoSQL
+    * **Hybrid** (4) : requêtes agrégées PostgreSQL + MongoDB
     """,
     version="3.0.0",
     docs_url="/docs",
@@ -103,12 +106,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🚀 Inclusion des routers optimisés (42 endpoints essentiels)
+# 🚀 Inclusion des routers optimisés (46 endpoints essentiels)
 app.include_router(auth_router)  # 7 endpoints : register, token, login, me, refresh, logout, delete-account
 app.include_router(postgres_livres_router)  # 8 endpoints : livres PostgreSQL + relations
 app.include_router(postgres_extras_router)  # 12 endpoints : analytics PostgreSQL
 app.include_router(mongo_livres_router)  # 10 endpoints : 4766 livres + critiques MongoDB
 app.include_router(mongo_extras_router)  # 5 endpoints : analytics MongoDB
+app.include_router(hybrid_router)  # 4 endpoints : requêtes hybrides PostgreSQL + MongoDB
+app.include_router(hybrid_optimized_router)  # 3 endpoints : version optimisée pour problèmes mémoire
 
 # ❌ ROUTERS SUPPRIMÉS POUR OPTIMISATION (-33 endpoints) :
 # 
@@ -137,17 +142,18 @@ async def root():
         "version": "3.0.0",
         "optimization": {
             "endpoints_avant": "73+",
-            "endpoints_apres": "42",
-            "reduction": "-42%",
-            "status": "✅ Optimisation + OAuth2 + suppression compte"
+            "endpoints_apres": "46",
+            "reduction": "-37%",
+            "status": "✅ Optimisation + OAuth2 + Hybrid endpoints"
         },
         "timestamp": datetime.now(),
         "docs": "/docs",
         "databases": {
-            "postgresql_livres": "/postgres/livres/* (📚 livres schéma test + 28 requêtes SQL)",
-            "postgresql_analytics": "/postgres-extras/* (📊 analytics PostgreSQL avancés)",
-            "mongo_livres": "/mongo-livres/* (📚 4766 livres + 💬 85 critiques Babelio)",
-            "mongo_extras": "/mongo-extras/* (🎯 analytics MongoDB + 39 requêtes NoSQL)"
+            "postgresql_livres": "/postgres/livres/* ( livres schéma test + 28 requêtes SQL)",
+            "postgresql_analytics": "/postgres-extras/* ( analytics PostgreSQL avancés)",
+            "mongo_livres": "/mongo-livres/* ( 4766 livres + 85 critiques Babelio)",
+            "mongo_extras": "/mongo-extras/* ( analytics MongoDB + 39 requêtes NoSQL)",
+            "hybrid": "/hybrid/* ( requêtes agrégées sur les 2 bases de données)"
         },
         "authentication": {
                         "oauth2": "/auth/token (form-data username/password)",
@@ -159,28 +165,29 @@ async def root():
                 "logout": "/auth/logout",
                 "delete": "/auth/delete-account"
             },
-            "info": "🔐 OAuth2 + JWT + JSON - Support complet"
+            "info": " OAuth2 + JWT + JSON - Support complet"
         },
         "features": [
-            "🚀 API optimisée : 40 endpoints essentiels (-45%)",
-            "📚 4766 livres MongoDB + Base PostgreSQL",
-            "🔍 Recherche avancée et filtres multiples",
-            "📊 67 requêtes BDD optimisées (28 SQL + 39 NoSQL)",
-            "📈 Analytics temps réel (2 bases de données)",
-            "🔐 Authentification JWT sécurisée",
-            "📱 Interface Streamlit moderne",
-            "⚡ Performance améliorée"
+            " API optimisée : 46 endpoints essentiels (-37%)",
+            " 4766 livres MongoDB + Base PostgreSQL",
+            " Recherche avancée et filtres multiples",
+            " 67 requêtes BDD optimisées (28 SQL + 39 NoSQL)",
+            " Analytics temps réel (2 bases de données)",
+            " Authentification JWT sécurisée",
+            " Requêtes hybrides agrégées PostgreSQL + MongoDB",
+            " Interface Streamlit moderne",
+            " Performance améliorée"
         ]
     }
 
 # Route de santé optimisée (publique)
 @app.get("/health")
 async def health_check():
-    """🏥 Vérification de l'état de santé de l'API et des bases de données"""
+    """ Vérification de l'état de santé de l'API et des bases de données"""
     status = {
         "api": "OK",
         "version": "3.0.0",
-        "optimization_status": "✅ 40 endpoints actifs (-45%)",
+        "optimization_status": " 46 endpoints actifs (-37%)",
         "timestamp": datetime.now(),
         "databases": {}
     }
@@ -188,29 +195,29 @@ async def health_check():
     # Test PostgreSQL
     try:
         check_db_connection()
-        status["databases"]["postgresql"] = "✅ connected"
+        status["databases"]["postgresql"] = " connected"
     except Exception as e:
-        status["databases"]["postgresql"] = f"❌ error: {str(e)}"
+        status["databases"]["postgresql"] = f" error: {str(e)}"
     
     # Test MongoDB
     if MONGODB_AVAILABLE and mongodb_service:
         try:
             if mongodb_service.async_client is not None:
                 await mongodb_service.database.list_collection_names()
-                status["databases"]["mongodb"] = "✅ connected"
+                status["databases"]["mongodb"] = " connected"
             else:
-                status["databases"]["mongodb"] = "⚠️ not initialized"
+                status["databases"]["mongodb"] = " not initialized"
         except Exception as e:
-            status["databases"]["mongodb"] = f"❌ error: {str(e)}"
+            status["databases"]["mongodb"] = f" error: {str(e)}"
     else:
-        status["databases"]["mongodb"] = "⚠️ not configured"
+        status["databases"]["mongodb"] = " not configured"
     
     return status
 
 # Route de résumé optimisée (publique)
 @app.get("/summary")
 async def summary():
-    """📊 Résumé rapide des données disponibles"""
+    """ Résumé rapide des données disponibles"""
     try:
         # Compter MongoDB si disponible
         mongo_data = {}
@@ -226,7 +233,7 @@ async def summary():
             "success": True,
             "data": {
                 "version_api": "3.0.0",
-                "optimization": "✅ 40 endpoints essentiels (-45%)",
+                "optimization": " 46 endpoints essentiels (-37%)",
                 "livres_mongodb": mongo_data.get("livres_mongodb", "N/A"),
                 "critiques_babelio": mongo_data.get("critiques_babelio", "N/A"),
                 "requetes_bdd_total": "67 requêtes optimisées",
@@ -240,7 +247,7 @@ async def summary():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-# ❌ ROUTES LEGACY SUPPRIMÉES POUR OPTIMISATION :
+#  ROUTES LEGACY SUPPRIMÉES POUR OPTIMISATION :
 # 
 # /users/ (CRUD users legacy) → remplacé par /auth/*
 # /items/ (CRUD items legacy) → remplacé par /postgres/livres/*
@@ -267,7 +274,7 @@ async def search_books(
     else:
         raise HTTPException(status_code=400, detail="Base de données non supportée. Utilisez 'mongo' (recommandé) ou 'postgres'")
 
-# ❌ Route /stats/ globale supprimée pour simplification
+#  Route /stats/ globale supprimée pour simplification
 # Utilisez les endpoints spécialisés :
 # - /postgres/livres/stats/general (PostgreSQL)
 # - /mongo-extras/analytics/general (MongoDB)

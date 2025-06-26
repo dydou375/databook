@@ -292,7 +292,7 @@ def show_main_app():
         if st.session_state.current_page in ["💬 Critiques", "🎯 Analytics"]:
             st.session_state.current_page = "🍃 MongoDB"
         
-        available_pages = ["🏠 Accueil", "🍃 MongoDB", "🗄️ PostgreSQL", "👤 Mon Profil"]
+        available_pages = ["🏠 Accueil", "🔀 Recherche Hybride", "🍃 MongoDB", "🗄️ PostgreSQL", "👤 Mon Profil"]
         
         page = st.selectbox(
             "Choisir une page",
@@ -307,12 +307,891 @@ def show_main_app():
     # Contenu principal selon la page sélectionnée
     if page == "🏠 Accueil":
         show_home_dashboard()
+    elif page == "🔀 Recherche Hybride":
+        show_hybrid_search()
     elif page == "🍃 MongoDB":
         show_mongo_books()
     elif page == "🗄️ PostgreSQL":
         show_postgres_data()
     elif page == "👤 Mon Profil":
         show_user_profile()
+
+def show_hybrid_search():
+    """Page de recherche hybride PostgreSQL + MongoDB"""
+    st.markdown("""
+    <div class="main-header">
+        <h1>🔀 Recherche Hybride</h1>
+        <p>Interrogez simultanément PostgreSQL ET MongoDB avec agrégation des résultats</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # En-tête avec badges de statut
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.info("🆕 **Nouveauté !** Recherche simultanée dans les 2 bases de données avec agrégation intelligente des résultats")
+    
+    with col2:
+        # Test PostgreSQL
+        try:
+            status_pg, _ = make_api_request("/postgres/livres/stats/general", headers={"Authorization": f"Bearer {st.session_state.token}"})
+            if status_pg == 200:
+                st.success("🐘 PostgreSQL OK")
+            else:
+                st.error("🐘 PostgreSQL KO")
+        except:
+            st.error("🐘 PostgreSQL KO")
+    
+    with col3:
+        # Test MongoDB
+        try:
+            status_mg, _ = make_api_request("/mongo-livres/livres", params={"limit": 1})
+            if status_mg == 200:
+                st.success("🍃 MongoDB OK")
+            else:
+                st.error("🍃 MongoDB KO")
+        except:
+            st.error("🍃 MongoDB KO")
+    
+    # Onglets pour les 4 fonctionnalités hybrides
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🔍 Recherche Globale", 
+        "📊 Stats Agrégées", 
+        "⚖️ Comparaison Livre", 
+        "🏆 Top Livres Global"
+    ])
+    
+    with tab1:
+        show_hybrid_search_tab()
+    
+    with tab2:
+        show_hybrid_stats_tab()
+    
+    with tab3:
+        show_hybrid_compare_tab()
+    
+    with tab4:
+        show_hybrid_top_tab()
+
+def show_hybrid_search_tab():
+    """Onglet recherche hybride globale"""
+    st.subheader("🔍 Recherche Simultanée dans les 2 Bases")
+    st.write("Effectuez une recherche qui interroge **PostgreSQL ET MongoDB** et combine les résultats")
+    
+    # Interface de recherche
+    col1, col2, col3 = st.columns([3, 1, 1])
+    
+    with col1:
+        search_query = st.text_input(
+            "🔍 Rechercher dans les 2 bases de données", 
+            placeholder="Titre, auteur, description...",
+            help="Cette recherche va interroger PostgreSQL et MongoDB simultanément"
+        )
+    
+    with col2:
+        limit_postgres = st.selectbox("Limite PostgreSQL", [5, 10, 20, 30], index=1)
+    
+    with col3:
+        limit_mongo = st.selectbox("Limite MongoDB", [5, 10, 20, 30], index=1)
+    
+    if search_query:
+        st.markdown("---")
+        
+        # Paramètres de la recherche hybride
+        params = {
+            "query": search_query,
+            "limit_postgres": limit_postgres,
+            "limit_mongo": limit_mongo
+        }
+        
+        with st.spinner(f"🔍 Recherche en cours dans PostgreSQL et MongoDB pour '{search_query}'..."):
+            status_code, response = make_api_request("/hybrid/search", params=params)
+        
+        if status_code == 200:
+            # Affichage des métriques globales
+            st.success("✅ Recherche hybride terminée !")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                postgres_count = response.get("aggregated", {}).get("postgres_count", 0)
+                st.metric("🐘 Résultats PostgreSQL", postgres_count)
+            
+            with col2:
+                mongo_count = response.get("aggregated", {}).get("mongo_count", 0)
+                st.metric("🍃 Résultats MongoDB", mongo_count)
+            
+            with col3:
+                total_combined = response.get("aggregated", {}).get("total_combined", 0)
+                st.metric("🔀 Total Combiné", total_combined)
+            
+            with col4:
+                if total_combined > 0:
+                    postgres_percent = (postgres_count / total_combined) * 100
+                    st.metric("📊 Répartition PG/MG", f"{postgres_percent:.0f}%/{100-postgres_percent:.0f}%")
+                else:
+                    st.metric("📊 Répartition", "N/A")
+            
+            # Onglets pour les résultats détaillés
+            result_tab1, result_tab2, result_tab3 = st.tabs([
+                "🔗 Résultats Combinés", 
+                "🐘 PostgreSQL Seul", 
+                "🍃 MongoDB Seul"
+            ])
+            
+            with result_tab1:
+                st.subheader("🔗 Résultats Agrégés des 2 Bases")
+                combined_results = response.get("combined_results", [])
+                
+                if combined_results:
+                    for i, livre in enumerate(combined_results, 1):
+                        source_color = "🐘" if livre.get("source_db") == "PostgreSQL" else "🍃"
+                        
+                        with st.expander(f"{source_color} #{i} - {livre.get('titre', 'Sans titre')} ({livre.get('source_db', 'Inconnue')})"):
+                            display_hybrid_livre_result(livre)
+                else:
+                    st.info("Aucun résultat combiné")
+            
+            with result_tab2:
+                st.subheader("🐘 Résultats PostgreSQL")
+                postgres_data = response.get("postgresql", {}).get("data", [])
+                
+                if postgres_data:
+                    for i, livre in enumerate(postgres_data, 1):
+                        with st.expander(f"🐘 #{i} - {livre.get('titre', 'Sans titre')}"):
+                            display_postgres_livre_result(livre)
+                elif response.get("postgresql", {}).get("available"):
+                    st.info("Aucun résultat PostgreSQL")
+                else:
+                    st.error(f"❌ PostgreSQL non disponible: {response.get('postgresql', {}).get('error')}")
+            
+            with result_tab3:
+                st.subheader("🍃 Résultats MongoDB")
+                mongo_data = response.get("mongodb", {}).get("data", [])
+                
+                if mongo_data:
+                    for i, livre in enumerate(mongo_data, 1):
+                        with st.expander(f"🍃 #{i} - {livre.get('titre', 'Sans titre')}"):
+                            display_mongo_livre_result(livre)
+                elif response.get("mongodb", {}).get("available"):
+                    st.info("Aucun résultat MongoDB")
+                else:
+                    st.error(f"❌ MongoDB non disponible: {response.get('mongodb', {}).get('error')}")
+        
+        else:
+            st.error(f"❌ Erreur lors de la recherche hybride: {response}")
+    else:
+        # Interface d'aide quand pas de recherche
+        st.markdown("### 🎯 Comment utiliser la recherche hybride ?")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **🔍 Fonctionnalités :**
+            - Recherche simultanée dans PostgreSQL ET MongoDB
+            - Agrégation intelligente des résultats
+            - Standardisation des formats de données
+            - Métriques de répartition en temps réel
+            """)
+        
+        with col2:
+            st.markdown("""
+            **💡 Exemple de recherches :**
+            - `python` - livres sur Python
+            - `tolkien` - livres de Tolkien
+            - `science fiction` - genre science-fiction
+            - `marcel proust` - auteur spécifique
+            """)
+        
+        # Bouton d'exemple
+        if st.button("🎲 Recherche d'exemple : 'python'", use_container_width=True):
+            st.session_state.example_search = "python"
+            st.rerun()
+
+def show_hybrid_stats_tab():
+    """Onglet statistiques agrégées"""
+    st.subheader("📊 Statistiques Agrégées des 2 Bases")
+    st.write("Vue d'ensemble complète des données PostgreSQL + MongoDB")
+    
+    headers = {"Authorization": f"Bearer {st.session_state.token}"}
+    
+    # Bouton de chargement
+    if st.button("🔄 Charger les statistiques hybrides", use_container_width=True, type="primary"):
+        with st.spinner("📊 Calcul des statistiques agrégées..."):
+            status_code, response = make_api_request("/hybrid/stats-aggregees", headers=headers)
+        
+        if status_code == 200:
+            st.success("✅ Statistiques hybrides calculées !")
+            
+            # Métriques principales
+            st.markdown("### 🎯 Métriques Globales")
+            
+            # Récupérer les stats combined si disponibles
+            combined_stats = response.get("combined_stats", {})
+            postgres_stats = response.get("postgresql", {}).get("stats", {})
+            mongo_stats = response.get("mongodb", {}).get("stats", {})
+            
+            if combined_stats:
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    total_global = combined_stats.get("total_livres_global", 0)
+                    st.metric("📚 Total Livres Global", f"{total_global:,}")
+                
+                with col2:
+                    proportion_pg = combined_stats.get("proportion_postgres", "0%")
+                    st.metric("🐘 Part PostgreSQL", proportion_pg)
+                
+                with col3:
+                    proportion_mg = combined_stats.get("proportion_mongo", "0%")
+                    st.metric("🍃 Part MongoDB", proportion_mg)
+            
+            # Statistiques détaillées par base
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 🐘 PostgreSQL")
+                if response.get("postgresql", {}).get("available"):
+                    if postgres_stats:
+                        st.metric("📚 Livres", f"{postgres_stats.get('total_livres', 0):,}")
+                        st.metric("✍️ Auteurs", f"{postgres_stats.get('total_auteurs', 0):,}")
+                        st.metric("🏢 Éditeurs", f"{postgres_stats.get('total_editeurs', 0):,}")
+                        st.metric("🌐 Langues", f"{postgres_stats.get('total_langues', 0):,}")
+                    else:
+                        st.info("Pas de statistiques PostgreSQL")
+                else:
+                    st.error(f"❌ PostgreSQL indisponible: {response.get('postgresql', {}).get('error')}")
+            
+            with col2:
+                st.markdown("### 🍃 MongoDB")
+                if response.get("mongodb", {}).get("available"):
+                    if mongo_stats:
+                        st.metric("📚 Livres", f"{mongo_stats.get('total_livres', 0):,}")
+                        st.metric("💬 Critiques", f"{mongo_stats.get('total_critiques', 0):,}")
+                        st.metric("✍️ Auteurs uniques", f"{mongo_stats.get('total_auteurs_uniques', 0):,}")
+                        st.metric("🏢 Éditeurs uniques", f"{mongo_stats.get('total_editeurs_uniques', 0):,}")
+                    else:
+                        st.info("Pas de statistiques MongoDB")
+                else:
+                    st.error(f"❌ MongoDB indisponible: {response.get('mongodb', {}).get('error')}")
+            
+            # Graphique de répartition si on a les données
+            if combined_stats:
+                st.markdown("### 📈 Répartition des Données")
+                
+                # Créer un graphique en secteurs pour la répartition
+                postgres_count = combined_stats.get("postgresql_livres", 0)
+                mongo_count = combined_stats.get("mongodb_livres", 0)
+                
+                if postgres_count > 0 or mongo_count > 0:
+                    df_repartition = pd.DataFrame({
+                        "Base de données": ["PostgreSQL", "MongoDB"],
+                        "Nombre de livres": [postgres_count, mongo_count],
+                        "Couleur": ["#336791", "#4DB33D"]
+                    })
+                    
+                    fig = px.pie(
+                        df_repartition, 
+                        values="Nombre de livres", 
+                        names="Base de données",
+                        title="Répartition des livres par base de données",
+                        color_discrete_sequence=["#336791", "#4DB33D"]
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # Afficher la réponse JSON complète dans un expander
+            with st.expander("🔧 Données brutes JSON"):
+                st.json(response)
+        
+        else:
+            st.error(f"❌ Erreur lors du chargement des statistiques: {response}")
+    
+    else:
+        # Interface d'attente
+        st.info("👆 Cliquez sur le bouton ci-dessus pour charger les statistiques agrégées des deux bases de données")
+        
+        st.markdown("""
+        ### 📊 Ce que vous obtiendrez :
+        
+        **🎯 Métriques globales :**
+        - Nombre total de livres (PostgreSQL + MongoDB)
+        - Répartition en pourcentage par base
+        - Proportions et comparaisons
+        
+        **🔍 Détails par base :**
+        - **PostgreSQL** : livres, auteurs, éditeurs, langues
+        - **MongoDB** : livres, critiques, auteurs uniques, éditeurs uniques
+        
+        **📈 Visualisations :**
+        - Graphiques de répartition
+        - Comparaisons visuelles
+        - Métriques en temps réel
+        """)
+
+def show_hybrid_compare_tab():
+    """Onglet comparaison de livre entre bases"""
+    st.subheader("⚖️ Comparer un Livre entre PostgreSQL et MongoDB")
+    st.write("Recherchez le même livre dans les 2 bases et analysez les différences/similitudes")
+    
+    # Interface de recherche
+    titre_recherche = st.text_input(
+        "📖 Titre du livre à comparer", 
+        placeholder="Ex: 1984, Harry Potter, Le Petit Prince...",
+        help="Entrez le titre d'un livre pour le rechercher dans les deux bases de données"
+    )
+    
+    if titre_recherche:
+        st.markdown("---")
+        
+        with st.spinner(f"🔍 Recherche de '{titre_recherche}' dans les 2 bases..."):
+            params = {"titre": titre_recherche}
+            status_code, response = make_api_request("/hybrid/compare-livre", params=params)
+        
+        if status_code == 200:
+            st.success(f"✅ Recherche terminée pour '{titre_recherche}'")
+            
+            # Statut de la recherche
+            postgres_found = response.get("postgresql", {}).get("found", False)
+            mongo_found = response.get("mongodb", {}).get("found", False)
+            
+            # Métriques de résultats
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if postgres_found:
+                    st.success("🐘 Trouvé dans PostgreSQL")
+                else:
+                    st.error("🐘 Non trouvé dans PostgreSQL")
+            
+            with col2:
+                if mongo_found:
+                    st.success("🍃 Trouvé dans MongoDB")
+                else:
+                    st.error("🍃 Non trouvé dans MongoDB")
+            
+            with col3:
+                if postgres_found and mongo_found:
+                    st.info("🔀 Présent dans les 2 bases")
+                elif postgres_found or mongo_found:
+                    st.warning("⚠️ Présent dans 1 seule base")
+                else:
+                    st.error("❌ Introuvable")
+            
+            # Recommandation
+            recommendation = response.get("comparison", {}).get("recommendation", "")
+            if recommendation:
+                st.info(f"💡 **Recommandation :** {recommendation}")
+            
+            # Affichage des données trouvées
+            if postgres_found or mongo_found:
+                st.markdown("### 📚 Données Trouvées")
+                
+                tab1, tab2, tab3 = st.tabs(["⚖️ Comparaison", "🐘 PostgreSQL", "🍃 MongoDB"])
+                
+                with tab1:
+                    # Section comparaison
+                    if postgres_found and mongo_found:
+                        st.subheader("🔍 Analyse Comparative")
+                        
+                        similarities = response.get("comparison", {}).get("similarities", [])
+                        differences = response.get("comparison", {}).get("differences", [])
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("#### ✅ Similitudes")
+                            if similarities:
+                                for similarity in similarities:
+                                    st.success(f"✓ {similarity}")
+                            else:
+                                st.info("Aucune similitude détectée automatiquement")
+                        
+                        with col2:
+                            st.markdown("#### ⚠️ Différences")
+                            if differences:
+                                for difference in differences:
+                                    st.warning(f"⚠ {difference}")
+                            else:
+                                st.success("Aucune différence majeure détectée")
+                    
+                    else:
+                        st.info("Comparaison impossible : livre non présent dans les deux bases")
+                
+                with tab2:
+                    # Données PostgreSQL
+                    if postgres_found:
+                        postgres_data = response.get("postgresql", {}).get("data", {})
+                        st.subheader("🐘 Données PostgreSQL")
+                        display_postgres_livre_result(postgres_data)
+                    else:
+                        postgres_error = response.get("postgresql", {}).get("error")
+                        if postgres_error:
+                            st.error(f"❌ Erreur PostgreSQL: {postgres_error}")
+                        else:
+                            st.info("📭 Livre non trouvé dans PostgreSQL")
+                
+                with tab3:
+                    # Données MongoDB
+                    if mongo_found:
+                        mongo_data = response.get("mongodb", {}).get("data", {})
+                        st.subheader("🍃 Données MongoDB")
+                        display_mongo_livre_result(mongo_data)
+                    else:
+                        mongo_error = response.get("mongodb", {}).get("error")
+                        if mongo_error:
+                            st.error(f"❌ Erreur MongoDB: {mongo_error}")
+                        else:
+                            st.info("📭 Livre non trouvé dans MongoDB")
+            
+            # Données brutes en debug
+            with st.expander("🔧 Réponse complète (debug)"):
+                st.json(response)
+        
+        else:
+            st.error(f"❌ Erreur lors de la comparaison: {response}")
+    
+    else:
+        # Interface d'aide
+        st.markdown("""
+        ### 💡 Comment utiliser la comparaison ?
+        
+        **🎯 Objectif :**
+        Vérifier si un livre existe dans les deux bases de données et analyser les éventuelles différences.
+        
+        **📚 Exemples de livres à tester :**
+        - Livres célèbres : "1984", "Le Petit Prince", "Harry Potter"
+        - Classiques : "Les Misérables", "Madame Bovary"
+        - Romans récents : "The Martian", "Ready Player One"
+        
+        **🔍 Analyse fournie :**
+        - Présence dans chaque base
+        - Similitudes automatiquement détectées
+        - Différences identifiées
+        - Recommandations de synchronisation
+        """)
+        
+        # Boutons d'exemples
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📖 Tester '1984'", use_container_width=True):
+                st.session_state.compare_example = "1984"
+                st.rerun()
+        
+        with col2:
+            if st.button("📖 Tester 'Harry Potter'", use_container_width=True):
+                st.session_state.compare_example = "Harry Potter"
+                st.rerun()
+        
+        with col3:
+            if st.button("📖 Tester 'Le Petit Prince'", use_container_width=True):
+                st.session_state.compare_example = "Le Petit Prince"
+                st.rerun()
+
+def show_hybrid_top_tab():
+    """Onglet top livres global"""
+    st.subheader("🏆 Top Livres Combinés des 2 Bases")
+    st.write("Meilleurs livres agrégés : PostgreSQL (par date récente) + MongoDB (par note)")
+    
+    # Interface de paramètres
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("**📋 Configuration du top :**")
+    
+    with col2:
+        limit = st.selectbox("Nombre de livres", [10, 20, 30, 50], index=1)
+    
+    # Bouton de chargement
+    if st.button("🏆 Générer le Top Livres Global", use_container_width=True, type="primary"):
+        
+        with st.spinner(f"🏆 Génération du top {limit} livres des 2 bases..."):
+            params = {"limit": limit}
+            status_code, response = make_api_request("/hybrid/top-livres-global", params=params)
+        
+        if status_code == 200:
+            st.success(f"✅ Top {limit} livres généré !")
+            
+            # Métriques du top
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_returned = response.get("total_returned", 0)
+                st.metric("📊 Total Retourné", total_returned)
+            
+            with col2:
+                postgres_count = response.get("postgres_count", 0)
+                st.metric("🐘 PostgreSQL", postgres_count)
+            
+            with col3:
+                mongo_count = response.get("mongo_count", 0)
+                st.metric("🍃 MongoDB", mongo_count)
+            
+            with col4:
+                if total_returned > 0:
+                    mix_ratio = f"{postgres_count}/{mongo_count}"
+                    st.metric("🔀 Ratio PG/MG", mix_ratio)
+                else:
+                    st.metric("🔀 Ratio", "0/0")
+            
+            # Onglets pour les différentes vues
+            tab1, tab2, tab3, tab4 = st.tabs([
+                "🔀 Top Mixte", 
+                "🐘 PostgreSQL Only", 
+                "🍃 MongoDB Only",
+                "📊 Analyse"
+            ])
+            
+            with tab1:
+                st.subheader("🏆 Top Livres Combiné (Mélangé)")
+                st.info("📝 Mix aléatoire des meilleurs livres PostgreSQL (récents) et MongoDB (bien notés)")
+                
+                top_combined = response.get("top_combined", [])
+                if top_combined:
+                    for i, livre in enumerate(top_combined, 1):
+                        source_icon = "🐘" if livre.get("source") == "PostgreSQL" else "🍃"
+                        titre = livre.get("titre", "Sans titre")
+                        auteur = livre.get("auteur") or livre.get("auteurs", "Auteur inconnu")
+                        
+                        with st.expander(f"{source_icon} #{i} - {titre} - {auteur}"):
+                            display_top_livre_result(livre)
+                else:
+                    st.warning("Aucun livre dans le top combiné")
+            
+            with tab2:
+                st.subheader("🐘 Top PostgreSQL (Par Date Récente)")
+                postgres_livres = response.get("postgresql_livres", [])
+                
+                if postgres_livres:
+                    for i, livre in enumerate(postgres_livres, 1):
+                        titre = livre.get("titre", "Sans titre")
+                        auteur = livre.get("auteur", "Auteur inconnu")
+                        annee = livre.get("annee_publication", "N/A")
+                        
+                        with st.expander(f"🐘 #{i} - {titre} ({annee})"):
+                            display_top_livre_result(livre)
+                else:
+                    st.info("Aucun livre PostgreSQL")
+                    if response.get("postgresql_error"):
+                        st.error(f"❌ Erreur: {response['postgresql_error']}")
+            
+            with tab3:
+                st.subheader("🍃 Top MongoDB (Par Note)")
+                mongodb_livres = response.get("mongodb_livres", [])
+                
+                if mongodb_livres:
+                    for i, livre in enumerate(mongodb_livres, 1):
+                        titre = livre.get("titre", "Sans titre")
+                        auteurs = livre.get("auteurs", "Auteur inconnu")
+                        note = livre.get("note", "N/A")
+                        
+                        with st.expander(f"🍃 #{i} - {titre} - ⭐{note}/5"):
+                            display_top_livre_result(livre)
+                else:
+                    st.info("Aucun livre MongoDB")
+                    if response.get("mongodb_error"):
+                        st.error(f"❌ Erreur: {response['mongodb_error']}")
+            
+            with tab4:
+                st.subheader("📊 Analyse du Top")
+                
+                # Analyse de la répartition
+                if total_returned > 0:
+                    # Graphique de répartition
+                    df_sources = pd.DataFrame({
+                        "Source": ["PostgreSQL", "MongoDB"],
+                        "Nombre": [postgres_count, mongo_count]
+                    })
+                    
+                    fig = px.pie(
+                        df_sources, 
+                        values="Nombre", 
+                        names="Source",
+                        title=f"Répartition du Top {limit}",
+                        color_discrete_sequence=["#336791", "#4DB33D"]
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Statistiques détaillées
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**🐘 Critères PostgreSQL :**")
+                        st.write("- Tri par date de publication récente")
+                        st.write("- Focus sur les nouveautés")
+                        st.write("- Données structurées")
+                    
+                    with col2:
+                        st.markdown("**🍃 Critères MongoDB :**")
+                        st.write("- Tri par note utilisateur")
+                        st.write("- Focus sur la qualité")
+                        st.write("- Critiques et évaluations")
+                    
+                    # Recommandations
+                    st.markdown("### 💡 Recommandations")
+                    if postgres_count > mongo_count:
+                        st.info("🐘 Majorité PostgreSQL - Focus sur les nouveautés")
+                    elif mongo_count > postgres_count:
+                        st.info("🍃 Majorité MongoDB - Focus sur la qualité")
+                    else:
+                        st.success("⚖️ Équilibre parfait entre les deux sources")
+                
+                else:
+                    st.warning("Aucune donnée à analyser")
+            
+            # Données brutes
+            with st.expander("🔧 Réponse complète JSON"):
+                st.json(response)
+        
+        else:
+            st.error(f"❌ Erreur lors de la génération du top: {response}")
+    
+    else:
+        # Interface d'aide
+        st.markdown("""
+        ### 🏆 Comment fonctionne le Top Global ?
+        
+        **🔄 Algorithme de sélection :**
+        1. **PostgreSQL** : sélection des livres les plus récents (par date de publication)
+        2. **MongoDB** : sélection des livres les mieux notés (par note utilisateur)
+        3. **Agrégation** : mélange aléatoire des résultats des deux bases
+        4. **Limitation** : respect de la limite demandée
+        
+        **📊 Avantages :**
+        - Diversité des sources de données
+        - Équilibre entre nouveauté et qualité
+        - Vue d'ensemble complète
+        
+        **🎯 Cas d'usage :**
+        - Recommandations de lecture
+        - Découverte de nouveaux livres
+        - Analyse comparative des bases
+        """)
+        
+        # Statistiques d'exemple
+        st.markdown("### 📈 Aperçu des Données")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.info("""
+            **🐘 PostgreSQL - Nouveautés**
+            - Livres récemment publiés
+            - Métadonnées complètes
+            - Information éditoriale
+            """)
+        
+        with col2:
+            st.info("""
+            **🍃 MongoDB - Qualité**
+            - Livres bien notés
+            - Critiques utilisateur
+            - Évaluations communautaires
+            """)
+
+def display_hybrid_livre_result(livre):
+    """Afficher un livre dans les résultats hybrides"""
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.write(f"**📖 Titre:** {livre.get('titre', 'N/A')}")
+        
+        # Gérer les auteurs selon la source
+        auteur_info = livre.get('auteur_nom_complet') or livre.get('auteurs', 'N/A')
+        st.write(f"**✍️ Auteur:** {auteur_info}")
+        
+        if livre.get('description'):
+            desc = livre['description'][:200] + "..." if len(livre.get('description', '')) > 200 else livre['description']
+            st.write(f"**📝 Description:** {desc}")
+        
+        # Genres (MongoDB uniquement)
+        if livre.get('genres'):
+            st.write(f"**🎭 Genres:** {livre['genres']}")
+    
+    with col2:
+        # Source de données
+        source_db = livre.get('source_db', 'Inconnue')
+        if source_db == "PostgreSQL":
+            st.success(f"🐘 {source_db}")
+        else:
+            st.info(f"🍃 {source_db}")
+        
+        # Note (MongoDB uniquement)
+        if livre.get('note_moyenne'):
+            st.metric("⭐ Note", f"{livre['note_moyenne']}/5")
+        
+        # Année de publication
+        if livre.get('annee_publication'):
+            st.write(f"**📅 Année:** {livre['annee_publication']}")
+    
+    with col3:
+        # ISBN
+        isbn = livre.get('isbn_13') or livre.get('isbn_10')
+        if isbn:
+            st.write(f"**📚 ISBN:** {isbn}")
+        
+        # Pages
+        pages = livre.get('nombre_pages')
+        if pages:
+            st.write(f"**📄 Pages:** {pages}")
+        
+        # Éditeur
+        editeur = livre.get('editeur_nom') or livre.get('editeur')
+        if editeur:
+            st.write(f"**🏢 Éditeur:** {editeur}")
+        
+        # Langue
+        langue = livre.get('langue_nom') or livre.get('langue')
+        if langue:
+            st.write(f"**🌐 Langue:** {langue}")
+
+def display_postgres_livre_result(livre):
+    """Afficher un livre PostgreSQL"""
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.write(f"**📖 Titre:** {livre.get('titre', 'N/A')}")
+        if livre.get('sous_titre'):
+            st.write(f"**📘 Sous-titre:** {livre['sous_titre']}")
+        
+        auteur = f"{livre.get('auteur_nom_complet', '')} {livre.get('auteur_prenom', '')}".strip()
+        if not auteur or auteur == " ":
+            auteur = livre.get('auteur', 'N/A')
+        st.write(f"**✍️ Auteur:** {auteur}")
+        
+        if livre.get('description'):
+            desc = livre['description'][:200] + "..." if len(livre.get('description', '')) > 200 else livre['description']
+            st.write(f"**📝 Description:** {desc}")
+        
+        editeur = livre.get('editeur_nom') or livre.get('editeur', 'N/A')
+        st.write(f"**🏢 Éditeur:** {editeur}")
+        
+        if livre.get('editeur_pays'):
+            st.write(f"**🌍 Pays éditeur:** {livre['editeur_pays']}")
+    
+    with col2:
+        # Métriques
+        if livre.get('isbn_13'):
+            st.write(f"**📚 ISBN-13:** {livre['isbn_13']}")
+        elif livre.get('isbn_10'):
+            st.write(f"**📚 ISBN-10:** {livre['isbn_10']}")
+        
+        if livre.get('annee_publication'):
+            st.write(f"**📅 Année:** {livre['annee_publication']}")
+        
+        if livre.get('nombre_pages'):
+            st.write(f"**📄 Pages:** {livre['nombre_pages']}")
+        
+        if livre.get('format_physique'):
+            st.write(f"**📏 Format:** {livre['format_physique']}")
+        
+        langue = livre.get('langue_nom') or livre.get('langue', 'N/A')
+        st.write(f"**🌐 Langue:** {langue}")
+        
+        if livre.get('sujet_nom'):
+            st.write(f"**🏷️ Sujet:** {livre['sujet_nom']}")
+
+def display_mongo_livre_result(livre):
+    """Afficher un livre MongoDB"""
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.write(f"**📖 Titre:** {livre.get('titre', 'N/A')}")
+        
+        # Auteurs (peut être une liste ou string)
+        auteurs = livre.get('auteurs', 'N/A')
+        if isinstance(auteurs, list):
+            auteurs_str = ', '.join(auteurs) if auteurs else 'N/A'
+        else:
+            auteurs_str = str(auteurs)
+        st.write(f"**✍️ Auteur(s):** {auteurs_str}")
+        
+        if livre.get('resume'):
+            resume = livre['resume'][:200] + "..." if len(livre.get('resume', '')) > 200 else livre['resume']
+            st.write(f"**📝 Résumé:** {resume}")
+        
+        # Genres
+        genres = livre.get('tous_les_genres', [])
+        if isinstance(genres, list) and genres:
+            genres_str = ', '.join(genres[:3])  # Max 3 genres
+            st.write(f"**🎭 Genres:** {genres_str}")
+        
+        if livre.get('editeur'):
+            st.write(f"**🏢 Éditeur:** {livre['editeur']}")
+    
+    with col2:
+        # Note et métriques
+        if livre.get('note'):
+            st.metric("⭐ Note", f"{livre['note']}/5")
+        
+        if livre.get('nombre_votes'):
+            st.metric("🗳️ Votes", livre['nombre_votes'])
+        
+        if livre.get('isbn_13'):
+            st.write(f"**📚 ISBN-13:** {livre['isbn_13']}")
+        elif livre.get('isbn_10'):
+            st.write(f"**📚 ISBN-10:** {livre['isbn_10']}")
+        
+        if livre.get('annee_publication'):
+            st.write(f"**📅 Année:** {livre['annee_publication']}")
+        
+        pages = livre.get('nb_pages') or livre.get('nombre_pages')
+        if pages:
+            st.write(f"**📄 Pages:** {pages}")
+        
+        if livre.get('langue'):
+            st.write(f"**🌐 Langue:** {livre['langue']}")
+        
+        if livre.get('url_babelio'):
+            st.markdown(f"🔗 [Voir sur Babelio]({livre['url_babelio']})")
+
+def display_top_livre_result(livre):
+    """Afficher un livre dans le top global"""
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.write(f"**📖 Titre:** {livre.get('titre', 'N/A')}")
+        
+        # Auteur selon la source
+        if livre.get('source') == 'PostgreSQL':
+            auteur = livre.get('auteur', 'N/A')
+        else:
+            auteurs = livre.get('auteurs', 'N/A')
+            if isinstance(auteurs, list):
+                auteur = ', '.join(auteurs) if auteurs else 'N/A'
+            else:
+                auteur = str(auteurs)
+        
+        st.write(f"**✍️ Auteur:** {auteur}")
+        
+        if livre.get('editeur'):
+            st.write(f"**🏢 Éditeur:** {livre['editeur']}")
+    
+    with col2:
+        # Source
+        source = livre.get('source', 'Inconnue')
+        if source == "PostgreSQL":
+            st.success(f"🐘 {source}")
+        else:
+            st.info(f"🍃 {source}")
+        
+        # Note (MongoDB) ou Année (PostgreSQL)
+        if livre.get('note'):
+            st.metric("⭐ Note", f"{livre['note']}/5")
+        elif livre.get('annee_publication'):
+            st.metric("📅 Année", livre['annee_publication'])
+    
+    with col3:
+        # Pages
+        pages = livre.get('nb_pages') or livre.get('nombre_pages')
+        if pages:
+            st.metric("📄 Pages", pages)
+        
+        # Critère de tri selon la source
+        if source == "PostgreSQL":
+            st.info("🔄 Trié par : Date récente")
+        else:
+            st.info("🔄 Trié par : Note élevée")
 
 def show_home_dashboard():
     """Dashboard d'accueil"""
@@ -361,9 +1240,13 @@ def show_home_dashboard():
     # Accès rapide
     st.subheader("🚀 Accès rapide")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
+        if st.button("🔀 Recherche Hybride (NOUVEAU!)", use_container_width=True, type="primary"):
+            st.session_state.current_page = "🔀 Recherche Hybride"
+            st.rerun()
+        
         if st.button("🍃 MongoDB (Livres, Critiques, Analytics)", use_container_width=True):
             st.session_state.current_page = "🍃 MongoDB"
             st.rerun()
@@ -372,8 +1255,7 @@ def show_home_dashboard():
         if st.button("🗄️ PostgreSQL (Données & Analytics)", use_container_width=True):
             st.session_state.current_page = "🗄️ PostgreSQL"
             st.rerun()
-    
-    with col3:
+        
         if st.button("👤 Mon Profil", use_container_width=True):
             st.session_state.current_page = "👤 Mon Profil"
             st.rerun()
